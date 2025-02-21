@@ -12,7 +12,8 @@ namespace DashboardApp
         private FlowLayoutPanel imagePanel;
         // TODO : Racine a adapter en fonction de chacun pour la demo / test des affichages 
         //NB: Le probleme sera régle automatiquement par le fait que dans la VF ça sera un dossier qui est dans l'arbo de l'application 
-        private string rootImageFolder = @"C:\Users\alaac\Pictures";
+        //private string rootImageFolder = @"C:\Users\alaac\Pictures";
+        private string rootImageFolder = @"C:\Users\vigou\Pictures";
 
         public Form1()
         {
@@ -72,7 +73,7 @@ namespace DashboardApp
                 }
             };
 
-            albumsButton.Click += (s, e) => NavigateTo("Alb ums");
+            albumsButton.Click += (s, e) => NavigateTo("Albums");
             imagesButton.Click += (s, e) => NavigateTo("Images");
             loginButton.Click += (s, e) => ToggleConnection();
             settingsButton.Click += (s, e) => NavigateTo("Parametres");
