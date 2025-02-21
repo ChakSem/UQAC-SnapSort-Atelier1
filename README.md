@@ -1,10 +1,12 @@
-# Data-Dashboard-CSharp-SQL-WinForms
-Create a Dashboard - C#, SQL Server, WinForms &amp; OOP / By Date Range
-<h2>Video tutorial - Part 1:</h2>
-<a href="https://youtu.be/qHyrJDd4sd8" target="_blank">
-  <img src="https://rjcodeadvance.com/wp-content/uploads/2022/03/Modern-Dashboard-UI.png"/>
-</a>
-<h2>Video tutorial - Part 2, UI Customization:</h2>
-<a href="https://youtu.be/CPQKHGNWJBA" target="_blank">
-  <img src="https://raw.githubusercontent.com/RJCodeAdvance/Data-Dashboard-CSharp-SQL-WinForms/main/DataDashboard%20UI%20Customize.png"/>
-</a>
+# V0.5 - SnapSort
+
+
+ <!-- // TODO : Racine a adapter en fonction de chacun pour la demo / test des affichages 
+        //NB: Le probleme sera régle automatiquement par le fait que dans la VF ça sera un dossier qui est dans l'arbo de l'application 
+        private string rootImageFolder = @"C:\Users\alaac\Pictures"; -->
+## Adaptations necessaires pour le bon fonctionnement de l'application
+-V_02/21 : Pour pouvoir ouvrir correctement l'onglet Albums , il faut mettre a jour la variable rootImageFolder dans le fichier Form1.cs
+```csharp
+private string rootImageFolder = @"C:\Users\alaac\Pictures";
+```
+Il faut remplacer le chemin par le chemin de votre dossier d'images.
