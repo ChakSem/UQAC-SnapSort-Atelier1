@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace DashboardApp.Models
@@ -14,10 +12,16 @@ namespace DashboardApp.Models
         private readonly Panel mainPanel;
         private TreeView albumTreeView;
         private FlowLayoutPanel imagePanel;
+        private Button loadMoreButton;
+        private Button loadPreviousButton;
+
         // TODO : Racine a adapter en fonction de chacun pour la demo / test des affichages 
         //NB: Le probleme sera régle automatiquement par le fait que dans la VF ça sera un dossier qui est dans l'arbo de l'application 
         private string rootImageFolder = @"C:\Users\alaac\Pictures";
         //private string rootImageFolder = @"C:\Users\vigou\Pictures";
+        private List<string> imageFiles = new List<string>();
+        private int currentIndex = 0;
+        private const int imagesPerPage = 10;
 
         public AlbumManager(Panel panel)
         {
@@ -29,14 +33,13 @@ namespace DashboardApp.Models
             SplitContainer contentSplitContainer = new SplitContainer
             {
                 Dock = DockStyle.Fill,
-                Orientation = Orientation.Horizontal,
-                SplitterDistance = 200
+                Orientation = Orientation.Vertical,
+                SplitterDistance = 250
             };
             mainPanel.Controls.Add(contentSplitContainer);
 
             SetupTreeView(contentSplitContainer.Panel1);
             SetupImagePanel(contentSplitContainer.Panel2);
-
             LoadAlbumTree();
         }
 
@@ -62,7 +65,36 @@ namespace DashboardApp.Models
                 Padding = new Padding(10),
                 WrapContents = true
             };
+
+            Panel buttonPanel = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 40
+            };
+
+            loadPreviousButton = new Button
+            {
+                Text = "Charger Précédent",
+                Enabled = false,
+                Dock = DockStyle.Left,
+                Width = 150
+            };
+            loadPreviousButton.Click += LoadPreviousImages;
+
+            loadMoreButton = new Button
+            {
+                Text = "Charger Plus",
+                Enabled = false,
+                Dock = DockStyle.Right,
+                Width = 150
+            };
+            loadMoreButton.Click += LoadMoreImages;
+
+            buttonPanel.Controls.Add(loadPreviousButton);
+            buttonPanel.Controls.Add(loadMoreButton);
+
             parent.Controls.Add(imagePanel);
+            parent.Controls.Add(buttonPanel);
         }
 
         private void LoadAlbumTree()
@@ -94,22 +126,37 @@ namespace DashboardApp.Models
         {
             if (e.Node?.Tag != null)
             {
-                DisplayImagesFromFolder(e.Node.Tag.ToString());
+                LoadImagesFromFolder(e.Node.Tag.ToString());
             }
         }
 
-        private void DisplayImagesFromFolder(string folderPath)
+        private void LoadImagesFromFolder(string folderPath)
         {
             imagePanel.Controls.Clear();
-            string[] extensions = { "*.jpg", "*.jpeg", "*.png", "*.gif", "*.bmp" };
+            imageFiles.Clear();
+            currentIndex = 0;
 
+            string[] extensions = { "*.jpg", "*.jpeg", "*.png", "*.gif", "*.bmp" };
             foreach (string ext in extensions)
             {
-                foreach (string file in Directory.GetFiles(folderPath, ext))
-                {
-                    AddImageToPanel(file);
-                }
+                imageFiles.AddRange(Directory.GetFiles(folderPath, ext));
             }
+
+            imageFiles = imageFiles.OrderBy(f => f).ToList();
+            UpdateImageNavigation();
+            DisplayImages();
+        }
+
+        private void DisplayImages()
+        {
+            imagePanel.Controls.Clear();
+
+            for (int i = currentIndex; i < Math.Min(currentIndex + imagesPerPage, imageFiles.Count); i++)
+            {
+                AddImageToPanel(imageFiles[i]);
+            }
+
+            UpdateImageNavigation();
         }
 
         private void AddImageToPanel(string imagePath)
@@ -126,6 +173,30 @@ namespace DashboardApp.Models
 
             new ToolTip().SetToolTip(pictureBox, Path.GetFileName(imagePath));
             imagePanel.Controls.Add(pictureBox);
+        }
+
+        private void LoadMoreImages(object sender, EventArgs e)
+        {
+            if (currentIndex + imagesPerPage < imageFiles.Count)
+            {
+                currentIndex += imagesPerPage;
+                DisplayImages();
+            }
+        }
+
+        private void LoadPreviousImages(object sender, EventArgs e)
+        {
+            if (currentIndex - imagesPerPage >= 0)
+            {
+                currentIndex -= imagesPerPage;
+                DisplayImages();
+            }
+        }
+
+        private void UpdateImageNavigation()
+        {
+            loadPreviousButton.Enabled = currentIndex > 0;
+            loadMoreButton.Enabled = currentIndex + imagesPerPage < imageFiles.Count;
         }
     }
 }
