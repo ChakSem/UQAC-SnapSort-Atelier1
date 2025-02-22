@@ -1,8 +1,18 @@
+# Fichiers spécifiques à Visual Studio
 *.vsidx
-*.suo 
-*.json
-*.exe
+*.suo
 *.pdb
-*./bin 
-*./vs
-*.vs/DataDashboardApp/v17
+.vs/
+
+# Fichiers binaires et exécutables
+*.exe
+
+# Fichiers JSON (à vérifier si tu veux vraiment les exclure)
+*.json
+
+# Dossiers de build
+**/bin/
+**/obj/
+DataDashboardApp/bin/Debug/
+DataDashboardApp/obj/Debug/
+
