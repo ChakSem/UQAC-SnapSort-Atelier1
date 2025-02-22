@@ -1,0 +1,6 @@
+*.vsidx
+*.suo 
+*.json
+*.exe
+*.pdb
+*./bin 
