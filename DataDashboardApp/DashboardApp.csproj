@@ -73,7 +73,7 @@
     <Compile Include="Models\AlbumManager.cs" />
     <Compile Include="Models\ConnectionManager.cs" />
     <Compile Include="Models\Dashboard.cs" />
-    <Compile Include="Models\NavigationManager .cs" />
+    <Compile Include="Models\NavigationManager.cs" />
     <Compile Include="Models\UIHelper.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

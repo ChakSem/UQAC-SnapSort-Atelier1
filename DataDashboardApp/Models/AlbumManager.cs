@@ -14,23 +14,21 @@ namespace DashboardApp.Models
         private FlowLayoutPanel imagePanel;
         private Button loadMoreButton;
         private Button loadPreviousButton;
-
-        // TODO : Racine a adapter en fonction de chacun pour la demo / test des affichages 
-        //NB: Le probleme sera régle automatiquement par le fait que dans la VF ça sera un dossier qui est dans l'arbo de l'application 
+        private Label folderTitleLabel;
         private string rootImageFolder = @"C:\Users\alaac\Pictures";
-        //private string rootImageFolder = @"C:\Users\vigou\Pictures";
         private List<string> imageFiles = new List<string>();
         private int currentIndex = 0;
         private const int imagesPerPage = 10;
 
-        public AlbumManager(Panel panel)
+        public AlbumManager(Panel panel, int width)
         {
             mainPanel = panel;
+            panel.Width = width;
         }
 
         public void CreateAlbumView()
         {
-            SplitContainer contentSplitContainer = new SplitContainer
+            var contentSplitContainer = new SplitContainer
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Vertical,
@@ -58,6 +56,16 @@ namespace DashboardApp.Models
 
         private void SetupImagePanel(Control parent)
         {
+            folderTitleLabel = new Label
+            {
+                Dock = DockStyle.Top,
+                Font = new Font("Segoe UI", 14, FontStyle.Bold),
+                ForeColor = Color.Black,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Height = 40,
+                Text = "Sélectionnez un album"
+            };
+
             imagePanel = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -93,8 +101,10 @@ namespace DashboardApp.Models
             buttonPanel.Controls.Add(loadPreviousButton);
             buttonPanel.Controls.Add(loadMoreButton);
 
+            parent.Controls.Add(folderTitleLabel);
             parent.Controls.Add(imagePanel);
             parent.Controls.Add(buttonPanel);
+            parent.Height = parent.Parent.Width + 1000;  // Ajuste la hauteur en fonction de la largeur
         }
 
         private void LoadAlbumTree()
@@ -106,7 +116,7 @@ namespace DashboardApp.Models
             }
 
             albumTreeView.Nodes.Clear();
-            TreeNode rootNode = new TreeNode("Albums") { Tag = rootImageFolder };
+            var rootNode = new TreeNode("Albums") { Tag = rootImageFolder };
             albumTreeView.Nodes.Add(rootNode);
             LoadDirectory(rootImageFolder, rootNode);
             rootNode.Expand();
@@ -116,7 +126,7 @@ namespace DashboardApp.Models
         {
             foreach (string dir in Directory.GetDirectories(path))
             {
-                TreeNode dirNode = new TreeNode(Path.GetFileName(dir)) { Tag = dir };
+                var dirNode = new TreeNode(Path.GetFileName(dir)) { Tag = dir };
                 parentNode.Nodes.Add(dirNode);
                 LoadDirectory(dir, dirNode);
             }
@@ -136,6 +146,8 @@ namespace DashboardApp.Models
             imageFiles.Clear();
             currentIndex = 0;
 
+            folderTitleLabel.Text = $"Album : {Path.GetFileName(folderPath)}";
+
             string[] extensions = { "*.jpg", "*.jpeg", "*.png", "*.gif", "*.bmp" };
             foreach (string ext in extensions)
             {
@@ -150,23 +162,21 @@ namespace DashboardApp.Models
         private void DisplayImages()
         {
             imagePanel.Controls.Clear();
-
             for (int i = currentIndex; i < Math.Min(currentIndex + imagesPerPage, imageFiles.Count); i++)
             {
                 AddImageToPanel(imageFiles[i]);
             }
-
             UpdateImageNavigation();
         }
 
         private void AddImageToPanel(string imagePath)
         {
-            PictureBox pictureBox = new PictureBox
+            var pictureBox = new PictureBox
             {
-                Width = 150,
-                Height = 150,
+                Width = 200,
+                Height = 200,
                 SizeMode = PictureBoxSizeMode.Zoom,
-                Margin = new Padding(5),
+                Margin = new Padding(10),
                 BorderStyle = BorderStyle.FixedSingle,
                 Image = Image.FromFile(imagePath)
             };

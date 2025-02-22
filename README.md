@@ -10,3 +10,6 @@
 private string rootImageFolder = @"C:\Users\alaac\Pictures";
 ```
 Il faut remplacer le chemin par le chemin de votre dossier d'images.
+
+## Notes: 
+- 22/02/2025 : Ajustement a faire pour le pannel de previsualisation des images (mettre une taille par defaut pour ne pas a voir a redimensionner a chaque fois), (j'ai essaye en faisant en augementant la taille de parent.width et parent.height mais ça n'a pas marché), donc faudra exploerer d'autres pistes.

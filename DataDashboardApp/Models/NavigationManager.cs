@@ -16,7 +16,7 @@ namespace DashboardApp.Models
         public NavigationManager(Panel panel)
         {
             mainPanel = panel;
-            albumManager = new AlbumManager(mainPanel);
+            albumManager = new AlbumManager(mainPanel, 900);
         }
 
         public void NavigateTo(string section)
