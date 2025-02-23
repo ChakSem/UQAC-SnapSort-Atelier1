@@ -3,9 +3,11 @@ package com.example.snapsort.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -24,6 +26,11 @@ fun HomeScreen(
     onSettingsClick: () -> Unit = {},
     innerPadding: PaddingValues = PaddingValues(),
 ) {
+    var showTermsDialog by remember { mutableStateOf(false) }
+    var termsChecked by remember { mutableStateOf(false) }
+    var enableButton by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         content = { innerPadding ->
@@ -41,7 +48,7 @@ fun HomeScreen(
                     painter = painterResource(id = R.drawable.logo_snapsort),
                     contentDescription = "Logo SnapSort",
                     modifier = Modifier
-                        .width(200.dp) // Adjusted width
+                        .width(200.dp)
                         .height(200.dp)
                 )
 
@@ -57,11 +64,17 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = false, onCheckedChange = {})
+                    Checkbox(checked = termsChecked, onCheckedChange = { termsChecked = it; enableButton = it })
                     Text(
-                        text = "J'accepte les conditions d'utilisation",
+                        text = "J'accepte les ",
                         fontSize = 14.sp,
                         color = Color.Gray
+                    )
+                    Text(
+                        text = "conditions d'utilisation",
+                        fontSize = 14.sp,
+                        color = Color.Blue,
+                        modifier = Modifier.clickable { showTermsDialog = true }
                     )
                 }
 
@@ -74,9 +87,10 @@ fun HomeScreen(
                         .padding(8.dp),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF6200EE),
+                        containerColor = if (enableButton) Color(0xFF6200EE) else Color.Gray,
                         contentColor = Color.White
-                    )
+                    ),
+                    enabled = enableButton
                 ) {
                     Text(text = "Activer", color = Color.White)
                 }
@@ -95,6 +109,38 @@ fun HomeScreen(
                     Text(text = "Tutoriel", color = Color.Black)
                 }
 
+            }
+
+            if (showTermsDialog) {
+                AlertDialog(
+                    onDismissRequest = { showTermsDialog = false },
+                    title = { Text("Conditions d'utilisation") },
+                    text = {
+                        Column(modifier = Modifier.verticalScroll(scrollState)) {
+                            Text(
+                                text = "TODO : Insérer ici les conditions d'utilisation.  \n\n".repeat(20),
+                                fontSize = 14.sp
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showTermsDialog = false
+                                termsChecked = true
+                                enableButton = true
+                            },
+                            enabled = scrollState.value == scrollState.maxValue // Enable only when scrolled to the bottom
+                        ) {
+                            Text("Continuer")
+                        }
+                    },
+                    dismissButton = {
+                        Button(onClick = { showTermsDialog = false }) {
+                            Text("Annuler")
+                        }
+                    }
+                )
             }
         }
     )
