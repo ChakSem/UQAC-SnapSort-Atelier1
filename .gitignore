@@ -1,5 +1,5 @@
 #Virtual env and config
-venv/
+.venv/
 .idea/
 *.pyc
 

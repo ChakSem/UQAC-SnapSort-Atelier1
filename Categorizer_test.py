@@ -32,7 +32,7 @@ class CategorizerImages:
         image_paths = [os.path.join(self.directory, filename) for filename in os.listdir(self.directory) if os.path.splitext(filename)[1].lower() in self.allowed_extensions]
         return image_paths
 
-    def send_gpt_request(self, message, extracting_json=False):
+    def gpt_send_request(self, message, extracting_json=False):
         try:
             response = self.client.chat.completions.create(
                 model=self.model, messages=message
@@ -47,15 +47,14 @@ class CategorizerImages:
         except Exception as e:
             print(f"Erreur OpenAI : {e}")
 
-    def gpt_get_key_words(self, base64_images):
+    def gpt_get_key_words(self, base64_images, image_names):
 
         # Liste pour chaque image et chaque texte associé
         content_list = []
         for i, base64_image in enumerate(base64_images):
             content_list.append({
                 "type": "text",
-                "text": f"Décris moi toutes les images avec 5 mots-clés. Le format est le suivant Image i : [mot-clé1, mot-clé2, mot-clé3, mot-clé4, mot-clé5]"
-            })
+                "text": f"Décris moi toutes les images avec 5 mots-clés. Le format est le suivant {image_names[i]} : [mot-clé1, mot-clé2, mot-clé3, mot-clé4, mot-clé5]"            })
             content_list.append({
                 "type": "image_url",
                 "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
@@ -68,7 +67,7 @@ class CategorizerImages:
             }
         ]
 
-        return self.send_gpt_request(messages, extracting_json=False)
+        return self.gpt_send_request(messages, extracting_json=False)
 
 
     def extract_json(self, response_text):
@@ -91,7 +90,7 @@ class CategorizerImages:
             print("Aucun JSON trouvé dans la réponse.")
             return None
 
-    def gpt_get_categories(self, keywords_output, image_paths):
+    def gpt_get_categories(self, keywords_output, image_names):
         """
         Utilise les mots-clés extraits pour regrouper les images similaires en catégories.
         Les images sont identifiées par leur ordre dans la liste.
@@ -100,17 +99,17 @@ class CategorizerImages:
         # Préparation d'un prompt détaillé incluant le résultat des mots-clés et l'ordre des images
         prompt = f"""Voici les listes de mots-clés obtenues pour chaque image (dans l'ordre) : {keywords_output}
 
-        L'ordre des images est le suivant : {chr(10).join([f"Image {i} : {path}" for i, path in enumerate(image_paths)])}
+            L'ordre et le nom des images est le suivant : {image_names}
 
-        En te basant sur ces informations, regroupe les images similaires dans des catégories. Une catégorie est décrite par un seul mot-clé.
-        Retourne le résultat au format JSON en indiquant pour chaque catégorie la liste des indices des images (par exemple : "Image 1", "Image 3", etc.) qui appartiennent à cette catégorie.
-        Le format attendu est :
-        {{
-            "categorie1": [ "Image 1", "Image 3" ],
-            "categorie2": [ "Image 2", "Image 4" ],
-            ...
-        }}
-        """
+            En te basant sur ces informations, regroupe les images similaires dans des catégories. Une catégorie est décrite par un seul mot-clé.
+            Retourne le résultat au format JSON en indiquant pour chaque catégorie la liste des indices des images qui appartiennent à cette catégorie.
+            Le format attendu est :
+            {{
+                "categorie1": [ "name", "name" ],
+                "categorie2": [ "name", "name" ],
+                ...
+            }}
+            """
         messages = [
             {
                 "role": "user",
@@ -118,15 +117,16 @@ class CategorizerImages:
             }
         ]
 
-        return self.send_gpt_request(messages, extracting_json=True)
+        return self.gpt_send_request(messages, extracting_json=True)
 
     def process(self):
         image_paths = self.get_image_paths()
+        image_names = [os.path.basename(path) for path in image_paths]
         base64_images = [self.encode_image(path) for path in image_paths]
-        keywords_output = self.gpt_get_key_words(base64_images)
+        keywords_output = self.gpt_get_key_words(base64_images, image_names)
         print("Mots-clés par image :")
         print(keywords_output)
-        categories = self.gpt_get_categories(keywords_output, image_paths)
+        categories = self.gpt_get_categories(keywords_output, image_names)
         print("Catégorisation des images :")
         print(categories)
 
