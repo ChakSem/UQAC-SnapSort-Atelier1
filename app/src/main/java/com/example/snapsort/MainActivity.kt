@@ -12,6 +12,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavController
 import androidx.navigation.compose.*
 import com.example.snapsort.ui.HomeScreen
+import com.example.snapsort.ui.WifiResultsScreen
 
 
 class MainActivity : ComponentActivity() {
@@ -30,11 +31,7 @@ fun AppNavigation() {
 
     NavHost(navController = navController, startDestination = "home") {
         composable("home") { HomeScreen(navController) }
+        composable("WifiResultsScreen") { WifiResultsScreen(navController)}
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun HomeScreenPreview() {
-    HomeScreen(navController = rememberNavController(), onSettingsClick = {})
-}

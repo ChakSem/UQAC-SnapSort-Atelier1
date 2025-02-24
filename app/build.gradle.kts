@@ -84,6 +84,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.4")
     implementation ("androidx.annotation:annotation:1.3.0")
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+    implementation(libs.androidx.appcompat)
 
 
     debugImplementation("androidx.compose.ui:ui-test-manifest")
