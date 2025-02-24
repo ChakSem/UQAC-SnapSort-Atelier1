@@ -1,2 +1,4 @@
 openAI==1.63.2
 jupyter==1.1.1
+pillow==11.1.0
+pandas==2.2.3
