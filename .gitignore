@@ -1,6 +1,7 @@
 #Virtual env and config
 venv/
 .idea/
+*.pyc
 
 #API Key
 secret.py
