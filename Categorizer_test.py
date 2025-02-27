@@ -1,10 +1,14 @@
 from openai import OpenAI
 from secret import OPENAI_API_KEY
+from PIL import Image
+import pandas as pd
 
 import os
 import base64
 import json
 import re
+import io
+
 
 class CategorizerImages:
     def __init__(self, client, directory="test_data", allowed_extensions=None, model="gpt-4o-mini"):
@@ -20,29 +24,33 @@ class CategorizerImages:
         self.allowed_extensions = allowed_extensions
         self.model = model
 
-    def encode_image(self, image_path):
-        try:
-            with open(image_path, "rb") as image_file:
-                return base64.b64encode(image_file.read()).decode("utf-8")
-        except Exception as e:
-            print(f"Erreur lors de l'encodage de l'image {image_path} : {e}")
-            return None
+    def encode_image(self, image_path, max_size=(512, 512), quality=80):
+        image = Image.open(image_path)
+
+        # Redimensionner l'image
+        image.thumbnail(max_size)
+
+        # Convertir en bytes avec compression
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=quality)
+
+        # Encoder en Base64
+        encoded_string = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+        return encoded_string
 
     def get_image_paths(self):
         image_paths = [os.path.join(self.directory, filename) for filename in os.listdir(self.directory) if os.path.splitext(filename)[1].lower() in self.allowed_extensions]
         return image_paths
 
-    def gpt_send_request(self, message, extracting_json=False):
+    def gpt_send_request(self, message):
         try:
             response = self.client.chat.completions.create(
                 model=self.model, messages=message
             )
 
             result = response.choices[0].message.content.strip()
-            if extracting_json:
-                result = self.extract_json(result)
-
-            return result
+            return self.extract_json(result)
 
         except Exception as e:
             print(f"Erreur OpenAI : {e}")
@@ -54,7 +62,16 @@ class CategorizerImages:
         for i, base64_image in enumerate(base64_images):
             content_list.append({
                 "type": "text",
-                "text": f"Décris moi toutes les images avec 5 mots-clés. Le format est le suivant {image_names[i]} : [mot-clé1, mot-clé2, mot-clé3, mot-clé4, mot-clé5]"            })
+                "text": f"""Décris moi toutes les images avec 5 mots-clés.
+                        Retourne le résultat au format JSON comme ceci :
+                        {{
+                            {image_names[i]} : [mot-clé1, mot-clé2, mot-clé3, mot-clé4, mot-clé5],
+                            ...
+
+                        }}
+                        Garde bien le nom de l'image {image_names[i]} pour décrire l'image
+                        """
+            })
             content_list.append({
                 "type": "image_url",
                 "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
@@ -67,7 +84,7 @@ class CategorizerImages:
             }
         ]
 
-        return self.gpt_send_request(messages, extracting_json=False)
+        return self.gpt_send_request(messages)
 
 
     def extract_json(self, response_text):
@@ -90,7 +107,7 @@ class CategorizerImages:
             print("Aucun JSON trouvé dans la réponse.")
             return None
 
-    def gpt_get_categories(self, keywords_output, image_names):
+    def gpt_get_categories(self, keywords_output):
         """
         Utilise les mots-clés extraits pour regrouper les images similaires en catégories.
         Les images sont identifiées par leur ordre dans la liste.
@@ -99,11 +116,8 @@ class CategorizerImages:
         # Préparation d'un prompt détaillé incluant le résultat des mots-clés et l'ordre des images
         prompt = f"""Voici les listes de mots-clés obtenues pour chaque image (dans l'ordre) : {keywords_output}
 
-            L'ordre et le nom des images est le suivant : {image_names}
-
-            En te basant sur ces informations, regroupe les images similaires dans des catégories. Une catégorie est décrite par un seul mot-clé.
-            Retourne le résultat au format JSON en indiquant pour chaque catégorie la liste des indices des images qui appartiennent à cette catégorie.
-            Le format attendu est :
+            En te basant sur ces informations, regroupe les images similaires dans des catégories. Une catégorie est décrite par un seul mot-clé. Une image ne peut appartenir qu'à une seule catégorie.
+            Retourne le résultat au format JSON comme tel :
             {{
                 "categorie1": [ "name", "name" ],
                 "categorie2": [ "name", "name" ],
@@ -117,18 +131,69 @@ class CategorizerImages:
             }
         ]
 
-        return self.gpt_send_request(messages, extracting_json=True)
+        return self.gpt_send_request(messages)
+
+    def create_df(self,image_paths):
+        image_list = []
+        for path in image_paths:
+            image = Image.open(path)
+            image_name = os.path.basename(path)
+            exifdata = image._getexif()
+            date_time, localisation = None, None
+            if exifdata:
+                for tag_id, value in exifdata.items():
+                    tag = Image.ExifTags.TAGS.get(tag_id, tag_id)
+                    if tag == "DateTime":
+                        date_time = value
+                    elif tag == "GPSInfo":
+                        localisation = value
+
+                image_list.append((image_name, path, date_time, localisation))
+
+            else:
+                print("Aucune donnée EXIF trouvée.")
+
+        df = pd.DataFrame(image_list, columns=["image_name", "path", "date_time", "localisation"])
+
+        return df
+
+    def add_keywords_to_df(self, df, keywords_output):
+        if keywords_output:
+            df["Keywords"] = df["image_name"].apply(lambda img: keywords_output.get(img, None))
+        return df
+
+    def add_categories_to_df(self, df, categories_output):
+        if categories_output:
+            df["Category"] = df["image_name"].map(
+                lambda image: next((cat for cat in categories_output if image in categories_output[cat]), None))
+        else:
+            print("Aucune catégorisation trouvée !")
+
+        return df
+
 
     def process(self):
         image_paths = self.get_image_paths()
         image_names = [os.path.basename(path) for path in image_paths]
+        print(image_names)
         base64_images = [self.encode_image(path) for path in image_paths]
+
+        df = self.create_df(image_paths)
+        print(df)
+
         keywords_output = self.gpt_get_key_words(base64_images, image_names)
         print("Mots-clés par image :")
         print(keywords_output)
-        categories = self.gpt_get_categories(keywords_output, image_names)
+
+        categories = self.gpt_get_categories(keywords_output)
         print("Catégorisation des images :")
         print(categories)
+
+        df = self.add_keywords_to_df(df, keywords_output)
+        df = self.add_categories_to_df(df, categories)
+
+        print("Affichage du DataFrame :")
+        print(df)
 
 if __name__ == "__main__":
     client = OpenAI(api_key=OPENAI_API_KEY)
