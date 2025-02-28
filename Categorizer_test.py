@@ -2,7 +2,7 @@ from openai import OpenAI
 from secret import OPENAI_API_KEY
 from PIL import Image
 import pandas as pd
-
+from tabulate import tabulate
 import os
 import base64
 import json
@@ -50,27 +50,24 @@ class CategorizerImages:
             )
 
             result = response.choices[0].message.content.strip()
-            return self.extract_json(result)
+
+            tokens = response.usage.total_tokens
+
+            return self.extract_json(result), tokens
 
         except Exception as e:
             print(f"Erreur OpenAI : {e}")
 
-    def gpt_get_key_words(self, base64_images, image_names):
+    def gpt_get_key_words(self, image_paths):
 
         # Liste pour chaque image et chaque texte associé
         content_list = []
-        for i, base64_image in enumerate(base64_images):
+        for image_path in image_paths:
+            base64_image = self.encode_image(image_path)
+            image_name = os.path.basename(image_path)
             content_list.append({
                 "type": "text",
-                "text": f"""Décris moi toutes les images avec 5 mots-clés.
-                        Retourne le résultat au format JSON comme ceci :
-                        {{
-                            {image_names[i]} : [mot-clé1, mot-clé2, mot-clé3, mot-clé4, mot-clé5],
-                            ...
-
-                        }}
-                        Garde bien le nom de l'image {image_names[i]} pour décrire l'image
-                        """
+                "text": f"""Décris moi l'image avec 5 mots-clés.Retourne le résultat au format JSON : {{ {image_name} : [mot-clé1, mot-clé2, mot-clé3, mot-clé4, mot-clé5] }} """
             })
             content_list.append({
                 "type": "image_url",
@@ -115,15 +112,8 @@ class CategorizerImages:
 
         # Préparation d'un prompt détaillé incluant le résultat des mots-clés et l'ordre des images
         prompt = f"""Voici les listes de mots-clés obtenues pour chaque image (dans l'ordre) : {keywords_output}
+                    Regroupe les images similaires dans des catégories. Une catégorie est décrite par un seul mot-clé. Une image ne peut appartenir qu'à une seule catégorie. Retourne le résultat au format JSON : {{ "categorie1": [ "name", "name" ], "categorie2": [ "name", "name" ],...}}"""
 
-            En te basant sur ces informations, regroupe les images similaires dans des catégories. Une catégorie est décrite par un seul mot-clé. Une image ne peut appartenir qu'à une seule catégorie.
-            Retourne le résultat au format JSON comme tel :
-            {{
-                "categorie1": [ "name", "name" ],
-                "categorie2": [ "name", "name" ],
-                ...
-            }}
-            """
         messages = [
             {
                 "role": "user",
@@ -174,26 +164,25 @@ class CategorizerImages:
 
     def process(self):
         image_paths = self.get_image_paths()
-        image_names = [os.path.basename(path) for path in image_paths]
-        print(image_names)
-        base64_images = [self.encode_image(path) for path in image_paths]
 
         df = self.create_df(image_paths)
-        print(df)
+        #print(tabulate(df, headers="keys", tablefmt="psql"))
 
-        keywords_output = self.gpt_get_key_words(base64_images, image_names)
-        print("Mots-clés par image :")
-        print(keywords_output)
+        keywords_output, keywords_tokens = self.gpt_get_key_words(image_paths)
+        #print("Mots-clés par image :")
+        #print(keywords_output)
 
-        categories = self.gpt_get_categories(keywords_output)
-        print("Catégorisation des images :")
-        print(categories)
+        categories_output, categories_tokens = self.gpt_get_categories(keywords_output)
+        #print("Catégorisation des images :")
+        #print(categories_output)
+
+        total_tokens = keywords_tokens + categories_tokens
+        print(f"Nombre de token utilisés : {total_tokens}\n")
 
         df = self.add_keywords_to_df(df, keywords_output)
-        df = self.add_categories_to_df(df, categories)
+        df = self.add_categories_to_df(df, categories_output)
 
-        print("Affichage du DataFrame :")
-        print(df)
+        print(tabulate(df, headers="keys", tablefmt="psql"))
 
 if __name__ == "__main__":
     client = OpenAI(api_key=OPENAI_API_KEY)

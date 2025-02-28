@@ -6,3 +6,10 @@
 #API Key
 secret.py
 
+#Images
+*.jpg
+*.png
+
+#Keep test images
+!test_data/*
+
