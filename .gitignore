@@ -9,7 +9,9 @@ secret.py
 #Images
 *.jpg
 *.png
+*.webp
 
 #Keep test images
 !test_data/*
+!test_floues_doublons/*
 
