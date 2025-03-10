@@ -149,17 +149,55 @@ class CategorizerImages:
 
     def add_keywords_to_df(self, df, keywords_output):
         if keywords_output:
-            df["Keywords"] = df["image_name"].apply(lambda img: keywords_output.get(img, None))
+            df.loc[df["image_name"].isin(keywords_output.keys()), "keywords"] = df["image_name"].map(keywords_output)
+        else:
+            print("Aucun mot clé fourni ! ")
         return df
 
     def add_categories_to_df(self, df, categories_output):
         if categories_output:
-            df["Category"] = df["image_name"].map(
-                lambda image: next((cat for cat in categories_output if image in categories_output[cat]), None))
+            # Inversion du dict : on associe une categorie a chaque image
+            image_to_categories = {img: cat for cat, images in categories_output.items() for img in images}
+
+            df.loc[df["image_name"].isin(image_to_categories.keys()), "categories"] = df["image_name"].map(image_to_categories)
         else:
             print("Aucune catégorisation trouvée !")
 
         return df
+
+    def pipeline_keywords(self, image_paths, limit_size=10):
+        image_data = self.create_df(image_paths)
+        total_keywords_tokens = 0
+        for i in range(0, len(image_paths), limit_size):
+            interval = [i, min(i + limit_size, len(image_paths))]
+            subset_image_paths = image_paths[interval[0]:interval[1]]
+            #print(f"Image paths : {subset_image_paths}")
+
+            keywords_output, keywords_tokens = self.gpt_get_key_words(subset_image_paths)
+            total_keywords_tokens += keywords_tokens
+
+            image_data = self.add_keywords_to_df(image_data, keywords_output)
+
+            #print(f"Total tokens : {total_keywords_tokens}")
+
+        return image_data, total_keywords_tokens
+
+    def pipeline_categories(self, df, limit_size=200):
+        keywords = df.set_index("image_name")["keywords"].to_dict()
+        total_categories_tokens = 0
+
+        for i in range(0, len(keywords), limit_size):
+            interval = [i, min(i + limit_size, len(df))]
+            subset_keys = list(keywords.keys())[interval[0]:interval[1]]
+
+            subset_keywords = {key: keywords[key] for key in subset_keys}
+
+            categories_output, categories_tokens = self.gpt_get_categories(subset_keywords)
+            total_categories_tokens += categories_tokens
+
+            df = self.add_categories_to_df(df, categories_output)
+
+        return df, total_categories_tokens
 
 
     def process(self):
@@ -168,24 +206,23 @@ class CategorizerImages:
         df = self.create_df(image_paths)
         #print(tabulate(df, headers="keys", tablefmt="psql"))
 
-        keywords_output, keywords_tokens = self.gpt_get_key_words(image_paths)
+        df, keywords_tokens = self.pipeline_keywords(image_paths, limit_size=50)
         #print("Mots-clés par image :")
         #print(keywords_output)
+        print(tabulate(df, headers="keys", tablefmt="psql"))
 
-        categories_output, categories_tokens = self.gpt_get_categories(keywords_output)
+        df, categories_tokens = self.pipeline_categories(df, limit_size=200)
         #print("Catégorisation des images :")
         #print(categories_output)
+        print(tabulate(df, headers="keys", tablefmt="psql"))
 
         total_tokens = keywords_tokens + categories_tokens
         print(f"Nombre de token utilisés : {total_tokens}\n")
 
-        df = self.add_keywords_to_df(df, keywords_output)
-        df = self.add_categories_to_df(df, categories_output)
-
-        print(tabulate(df, headers="keys", tablefmt="psql"))
+        #print(tabulate(df, headers="keys", tablefmt="psql"))
 
 if __name__ == "__main__":
     client = OpenAI(api_key=OPENAI_API_KEY)
     
-    categorizer = CategorizerImages(client, directory="test_data")
+    categorizer = CategorizerImages(client, directory="photos_victor")
     categorizer.process()
