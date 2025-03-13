@@ -1,4 +1,3 @@
-
 package com.example.snapsort.ui
 
 import androidx.compose.foundation.layout.*
@@ -19,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
 import com.example.snapsort.ui.ScanResult
 import com.example.snapsort.ui.WifiScanner
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,19 +29,19 @@ fun WifiResultsScreen(
     var devices by remember { mutableStateOf<List<NetworkDevice>>(emptyList()) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         isScanning = true
-        WifiScanner.startScan(context) { result ->
-            isScanning = false
-            when (result) {
-                is ScanResult.Success -> {
-                    devices = result.devices
-                    errorMessage = null
-                }
-                is ScanResult.Error -> {
-                    errorMessage = result.message
-                }
+        val result = WifiScanner.startScan(context)
+        isScanning = false
+        when (result) {
+            is ScanResult.Success -> {
+                devices = result.devices
+                errorMessage = null
+            }
+            is ScanResult.Error -> {
+                errorMessage = result.message
             }
         }
     }
@@ -59,8 +59,9 @@ fun WifiResultsScreen(
                     IconButton(
                         onClick = {
                             if (!isScanning) {
-                                isScanning = true
-                                WifiScanner.startScan(context) { result ->
+                                scope.launch {
+                                    isScanning = true
+                                    val result = WifiScanner.startScan(context)
                                     isScanning = false
                                     when (result) {
                                         is ScanResult.Success -> {
@@ -153,28 +154,53 @@ fun DeviceCard(device: NetworkDevice) {
             .padding(vertical = 4.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .padding(16.dp)
-                .fillMaxWidth()
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = device.hostname,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "IP: ${device.ipAddress}",
-                fontSize = 14.sp,
-                color = Color.Gray
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "MAC: ${device.macAddress}",
-                fontSize = 14.sp,
-                color = Color.Gray
-            )
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = device.hostname,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "IP: ${device.ipAddress}",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "MAC: ${device.macAddress}",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            }
+            
+            // Indicateur de force du signal
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                val signalColor = when {
+                    device.signalStrength > -50 -> Color.Green
+                    device.signalStrength > -70 -> Color.Yellow
+                    else -> Color.Red
+                }
+                
+//                Icon(
+//                    imageVector = Icons.Default.Wifi,
+//                    contentDescription = "Force du signal",
+//                    tint = signalColor,
+//                    modifier = Modifier.size(24.dp)
+//                )
+            }
         }
     }
 }

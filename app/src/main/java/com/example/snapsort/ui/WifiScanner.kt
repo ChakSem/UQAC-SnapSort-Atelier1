@@ -2,14 +2,19 @@ package com.example.snapsort.ui
 
 import android.content.Context
 import android.net.wifi.WifiManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import java.net.InetAddress
 import java.net.NetworkInterface
-import java.util.concurrent.Executors
 
 data class NetworkDevice(
     val hostname: String,
     val ipAddress: String,
-    val macAddress: String
+    val macAddress: String,
+    val signalStrength: Int = 0
 )
 
 sealed class ScanResult {
@@ -18,83 +23,82 @@ sealed class ScanResult {
 }
 
 object WifiScanner {
-    fun startScan(context: Context, onResult: (ScanResult) -> Unit) {
-        val wifiManager = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
+    private const val SCAN_TIMEOUT = 1000L  // Durée maximale pour un scan en ms
+    private const val PARALLEL_SCANS = 16 // C'est le nombre d'adresses IP à scanner en parallèle
 
-        if (!wifiManager.isWifiEnabled) {
-            onResult(ScanResult.Error("Veuillez activer le WiFi"))
-            return
-        }
-
-        val executor = Executors.newSingleThreadExecutor()
-        executor.execute {
-            try {
-                val ipAddress = wifiManager.connectionInfo.ipAddress
-                val ip = String.format(
-                    "%d.%d.%d",
-                    ipAddress and 0xff,
-                    (ipAddress shr 8) and 0xff,
-                    (ipAddress shr 16) and 0xff
-                )
-
-                val devices = mutableListOf<NetworkDevice>()
-
-                for (i in 1..254) {
-                    val testIp = "$ip.$i"
-                    val address = InetAddress.getByName(testIp)
-
-                    if (address.isReachable(1000)) {
-                        val hostname = address.hostName
-                        val macAddress = getMacAddress(testIp, context)
-                        devices.add(
-                            NetworkDevice(
-                                hostname = hostname,
-                                ipAddress = testIp,
-                                macAddress = macAddress
-                            )
-                        )
-                    }
-                }
-
-                onResult(ScanResult.Success(devices))
-            } catch (e: Exception) {
-                onResult(ScanResult.Error("Erreur lors du scan: ${e.message}"))
-            }
-        }
-    }
-
-    private fun getMacAddress(ip: String, context: Context): String {
+    suspend fun startScan(context: Context): ScanResult = withContext(Dispatchers.IO) {
         try {
-            // Essayer d'abord d'obtenir l'adresse MAC via l'interface réseau
-            val networkInterfaces = NetworkInterface.getNetworkInterfaces()
-            while (networkInterfaces.hasMoreElements()) {
-                val networkInterface = networkInterfaces.nextElement()
-                val addresses = networkInterface.inetAddresses
-                while (addresses.hasMoreElements()) {
-                    val addr = addresses.nextElement()
-                    if (!addr.isLoopbackAddress && addr.hostAddress == ip) {
-                        val mac = networkInterface.hardwareAddress
-                        if (mac != null) {
-                            return mac.joinToString(":") { byte -> "%02X".format(byte) }
-                        }
-                    }
-                }
+            val wifiManager = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            
+            if (!wifiManager.isWifiEnabled) {
+                return@withContext ScanResult.Error("Le WiFi est désactivé")
             }
 
-            // Si l'adresse MAC n'est pas trouvée via l'interface réseau, essayer ARP
-            val runtime = Runtime.getRuntime()
-            val process = runtime.exec("ip neigh show $ip")
-            val output = process.inputStream.bufferedReader().readText()
-
-            // Chercher l'adresse MAC dans la sortie de la commande ARP
-            val macMatch = Regex("[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}:[0-9a-f]{2}").find(output)
-            if (macMatch != null) {
-                return macMatch.value.uppercase()
+            val connectionInfo = wifiManager.connectionInfo
+            if (connectionInfo == null) {
+                return@withContext ScanResult.Error("Non connecté au réseau WiFi")
             }
+
+            val devices = scanNetwork(wifiManager)
+            ScanResult.Success(devices.sortedByDescending { it.signalStrength })
+            
         } catch (e: Exception) {
-            e.printStackTrace()
+            ScanResult.Error("Erreur de scan : ${e.localizedMessage}")
+        }
+    }
+
+    private suspend fun scanNetwork(wifiManager: WifiManager): List<NetworkDevice> = 
+        coroutineScope {
+            val dhcpInfo = wifiManager.dhcpInfo
+            val subnet = getSubnet(dhcpInfo.ipAddress)
+            val currentRssi = wifiManager.connectionInfo.rssi
+
+            (1..254).chunked(PARALLEL_SCANS)
+                .flatMap { chunk ->
+                    chunk.map { i ->
+                        async {
+                            scanAddress("$subnet.$i", currentRssi)
+                        }
+                    }.awaitAll()
+                }
+                .filterNotNull()
         }
 
-        return "Non disponible"
+    private suspend fun scanAddress(ip: String, rssi: Int): NetworkDevice? =
+        withContext(Dispatchers.IO) {
+            try {
+                val address = InetAddress.getByName(ip)
+                if (address.isReachable(SCAN_TIMEOUT.toInt())) {
+                    NetworkDevice(
+                        hostname = address.hostName.takeIf { it != ip } ?: "Appareil $ip",
+                        ipAddress = ip,
+                        macAddress = getMacFromArpCache(ip),
+                        signalStrength = rssi
+                    )
+                } else null
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+    private fun getMacFromArpCache(ip: String): String {
+        return try {
+            val process = Runtime.getRuntime().exec("arp -a $ip")
+            val result = process.inputStream.bufferedReader().readText()
+            val macPattern = "[0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:]" +
+                           "[0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}"
+            
+            result.lineSequence()
+                .filter { it.contains(ip) }
+                .mapNotNull { line ->
+                    Regex(macPattern).find(line)?.value
+                }
+                .firstOrNull() ?: "Non disponible"
+        } catch (e: Exception) {
+            "Non disponible"
+        }
     }
+
+    private fun getSubnet(ip: Int): String =
+        "${ip and 0xFF}.${(ip shr 8) and 0xFF}.${(ip shr 16) and 0xFF}"
 }
