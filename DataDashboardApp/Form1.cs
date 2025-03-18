@@ -34,7 +34,7 @@ namespace DashboardApp
             loginButton.Click += (s, e) => connectionManager.ToggleConnection();
             albumsButton.Click += (s, e) => navigationManager.NavigateTo("Albums");
             imagesButton.Click += (s, e) => navigationManager.NavigateTo("Images");
-            settingsButton.Click += (s, e) => navigationManager.NavigateTo("Parametres");
+            settingsButton.Click += (s, e) => navigationManager.NavigateTo("Options");
         }
     }
 }

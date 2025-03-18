@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DashboardApp.Config;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -15,10 +16,10 @@ namespace DashboardApp.Models
         private Button loadMoreButton;
         private Button loadPreviousButton;
         private Label folderTitleLabel;
-        private string rootImageFolder = @"C:\Users\alaac\Pictures";
+        private string rootImageFolder = AppSettings.DEFAULT_ROOT_FOLDER;
         private List<string> imageFiles = new List<string>();
         private int currentIndex = 0;
-        private const int imagesPerPage = 10;
+        private const int imagesPerPage = AppSettings.IMAGES_PER_PAGE;
 
         public AlbumManager(Panel panel, int width)
         {
@@ -56,15 +57,7 @@ namespace DashboardApp.Models
 
         private void SetupImagePanel(Control parent)
         {
-            folderTitleLabel = new Label
-            {
-                Dock = DockStyle.Top,
-                Font = new Font("Segoe UI", 14, FontStyle.Bold),
-                ForeColor = Color.Black,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Height = 40,
-                Text = "Sélectionnez un album"
-            };
+            folderTitleLabel = UIHelper.CreateTitleLabel("Sélectionnez un album");
 
             imagePanel = new FlowLayoutPanel
             {
