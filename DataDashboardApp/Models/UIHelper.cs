@@ -1,5 +1,6 @@
 ﻿
 using System;
+using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
@@ -27,7 +28,20 @@ namespace DashboardApp.Models
                 }
             };
         }
+
+        public static Label CreateTitleLabel(string text)
+        {
+            return new Label
+            {
+                Dock = DockStyle.Top,
+                Font = new Font("Segoe UI", 14, FontStyle.Bold),
+                ForeColor = Color.Black,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Height = 40,
+                Text = text
+            };
+        }
     }
-    
+
 
 }

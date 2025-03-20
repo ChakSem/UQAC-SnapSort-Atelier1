@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DashboardApp.Views;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -12,11 +13,14 @@ namespace DashboardApp.Models
     {
         private readonly Panel mainPanel;
         private readonly AlbumManager albumManager;
+        private readonly OptionManager optionManager;
 
         public NavigationManager(Panel panel)
         {
             mainPanel = panel;
             albumManager = new AlbumManager(mainPanel, 900);
+            optionManager = new OptionManager(mainPanel, 900);
+
         }
 
         public void NavigateTo(string section)
@@ -26,6 +30,10 @@ namespace DashboardApp.Models
             if (section == "Albums")
             {
                 albumManager.CreateAlbumView();
+            }
+            else if (section == "Options")
+            {
+                optionManager.CreateOptionView();
             }
             else
             {

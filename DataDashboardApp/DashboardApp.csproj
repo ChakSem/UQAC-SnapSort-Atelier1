@@ -63,6 +63,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Config\AppSettings.cs" />
     <Compile Include="Db\DbConnection.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
@@ -74,6 +75,7 @@
     <Compile Include="Models\ConnectionManager.cs" />
     <Compile Include="Models\Dashboard.cs" />
     <Compile Include="Models\NavigationManager.cs" />
+    <Compile Include="Models\OptionManager.cs" />
     <Compile Include="Models\UIHelper.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

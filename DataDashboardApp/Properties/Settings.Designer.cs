@@ -8,19 +8,60 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace DashboardApp.Properties {
-    
-    
+using System;
+using System.Configuration;
+
+namespace DashboardApp.Properties
+{
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Microsoft.VisualStudio.Editors.SettingsDesigner.SettingsSingleFileGenerator", "17.11.0.0")]
-    internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase {
-        
+    internal sealed partial class Settings : global::System.Configuration.ApplicationSettingsBase
+    {
         private static Settings defaultInstance = ((Settings)(global::System.Configuration.ApplicationSettingsBase.Synchronized(new Settings())));
-        
-        public static Settings Default {
-            get {
-                return defaultInstance;
+
+        public static Settings Default
+        {
+            get { return defaultInstance; }
+        }
+
+        public Settings()
+        {
+            // Initialisation dynamique du chemin d'accès au dossier Pictures de l'utilisateur
+            if (string.IsNullOrEmpty(this.RootFolder))
+            {
+                this.RootFolder = $@"C:\Users\{Environment.UserName}\Pictures";
             }
+        }
+
+        [UserScopedSetting()]
+        public string RootFolder
+        {
+            get { return (string)this["RootFolder"]; }
+            set { this["RootFolder"] = value; }
+        }
+
+        [UserScopedSetting()]
+        [DefaultSettingValue("10")]
+        public int ImagesPerPage
+        {
+            get { return (int)this["ImagesPerPage"]; }
+            set { this["ImagesPerPage"] = value; }
+        }
+
+        [UserScopedSetting()]
+        [DefaultSettingValue("200")]
+        public int ThumbnailSize
+        {
+            get { return (int)this["ThumbnailSize"]; }
+            set { this["ThumbnailSize"] = value; }
+        }
+
+        /// <summary>
+        /// Enregistre les paramètres modifiés.
+        /// </summary>
+        public void SaveSettings()
+        {
+            this.Save();
         }
     }
 }

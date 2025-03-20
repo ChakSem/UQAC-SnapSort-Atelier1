@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DashboardApp.Config;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -15,15 +16,30 @@ namespace DashboardApp.Models
         private Button loadMoreButton;
         private Button loadPreviousButton;
         private Label folderTitleLabel;
-        private string rootImageFolder = @"C:\Users\alaac\Pictures";
+
+        // Valeurs récupérées depuis la configuration
+        private string rootImageFolder;
         private List<string> imageFiles = new List<string>();
         private int currentIndex = 0;
-        private const int imagesPerPage = 10;
+        private int imagesPerPage;
+        private int thumbnailSize;
 
         public AlbumManager(Panel panel, int width)
         {
             mainPanel = panel;
             panel.Width = width;
+            // Récupération initiale des paramètres depuis AppSettings
+            RefreshSettings();
+        }
+
+        /// <summary>
+        /// Recharge les paramètres depuis AppSettings.
+        /// </summary>
+        private void RefreshSettings()
+        {
+            rootImageFolder = AppSettings.Instance.RootFolder;
+            imagesPerPage = AppSettings.Instance.ImagesPerPage;
+            thumbnailSize = AppSettings.Instance.ThumbnailSize;
         }
 
         public void CreateAlbumView()
@@ -104,11 +120,14 @@ namespace DashboardApp.Models
             parent.Controls.Add(folderTitleLabel);
             parent.Controls.Add(imagePanel);
             parent.Controls.Add(buttonPanel);
-            parent.Height = parent.Parent.Width + 1000;  // Ajuste la hauteur en fonction de la largeur
+
+            // Ajustement optionnel de la hauteur (à adapter si nécessaire)
+            parent.Height = parent.Parent.Width + 1000;
         }
 
         private void LoadAlbumTree()
         {
+            RefreshSettings();
             if (!Directory.Exists(rootImageFolder))
             {
                 MessageBox.Show("Le dossier n'existe pas.", "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -142,6 +161,9 @@ namespace DashboardApp.Models
 
         private void LoadImagesFromFolder(string folderPath)
         {
+            // Actualisation des paramètres avant de charger les images
+            RefreshSettings();
+
             imagePanel.Controls.Clear();
             imageFiles.Clear();
             currentIndex = 0;
@@ -173,13 +195,22 @@ namespace DashboardApp.Models
         {
             var pictureBox = new PictureBox
             {
-                Width = 200,
-                Height = 200,
+                Width = thumbnailSize,
+                Height = thumbnailSize,
                 SizeMode = PictureBoxSizeMode.Zoom,
                 Margin = new Padding(10),
-                BorderStyle = BorderStyle.FixedSingle,
-                Image = Image.FromFile(imagePath)
+                BorderStyle = BorderStyle.FixedSingle
             };
+
+            try
+            {
+                pictureBox.Image = Image.FromFile(imagePath);
+            }
+            catch (Exception ex)
+            {
+                // Gestion de l'erreur au cas où le fichier ne pourrait être chargé
+                MessageBox.Show($"Erreur lors du chargement de l'image : {Path.GetFileName(imagePath)}\n{ex.Message}", "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
 
             new ToolTip().SetToolTip(pictureBox, Path.GetFileName(imagePath));
             imagePanel.Controls.Add(pictureBox);
