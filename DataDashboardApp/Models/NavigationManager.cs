@@ -14,12 +14,14 @@ namespace DashboardApp.Models
         private readonly Panel mainPanel;
         private readonly AlbumManager albumManager;
         private readonly OptionManager optionManager;
+        private readonly ImageGallery gallery;
 
         public NavigationManager(Panel panel)
         {
             mainPanel = panel;
             albumManager = new AlbumManager(mainPanel, 900);
             optionManager = new OptionManager(mainPanel, 900);
+            gallery = new ImageGallery(mainPanel);
 
         }
 
@@ -34,6 +36,10 @@ namespace DashboardApp.Models
             else if (section == "Options")
             {
                 optionManager.CreateOptionView();
+            }
+            else if (section == "Images non triées")
+            {
+                gallery.CreateImageGallery();
             }
             else
             {

@@ -33,8 +33,9 @@ namespace DashboardApp
             logoPanel.MouseDown += UIHelper.HandleWindowDrag(this);
             loginButton.Click += (s, e) => connectionManager.ToggleConnection();
             albumsButton.Click += (s, e) => navigationManager.NavigateTo("Albums");
-            imagesButton.Click += (s, e) => navigationManager.NavigateTo("Images");
+            imagesButton.Click += (s, e) => navigationManager.NavigateTo("Images non triées");
             settingsButton.Click += (s, e) => navigationManager.NavigateTo("Options");
+            
         }
     }
 }

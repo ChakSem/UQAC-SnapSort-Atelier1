@@ -74,6 +74,7 @@
     <Compile Include="Models\AlbumManager.cs" />
     <Compile Include="Models\ConnectionManager.cs" />
     <Compile Include="Models\Dashboard.cs" />
+    <Compile Include="Models\ImageGallery.cs" />
     <Compile Include="Models\NavigationManager.cs" />
     <Compile Include="Models\OptionManager.cs" />
     <Compile Include="Models\UIHelper.cs" />
