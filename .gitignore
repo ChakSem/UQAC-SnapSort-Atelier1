@@ -15,3 +15,6 @@ secret.py
 !test_data/*
 !test_floues_doublons/*
 
+#CSV files
+*.csv
+
