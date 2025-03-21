@@ -3,28 +3,32 @@
   "WorkspaceRootPath": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\datadashboardapp\\models\\navigationmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|solutionrelative:datadashboardapp\\models\\navigationmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|c:\\users\\alaac\\desktop\\dossier_codes\\uqac\\hiver\\atelier\\uqac-snapsort-atelier1\\datadashboardapp\\models\\imagegallery.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|solutionrelative:datadashboardapp\\models\\imagegallery.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|c:\\users\\alaac\\desktop\\dossier_codes\\uqac\\hiver\\atelier\\uqac-snapsort-atelier1\\datadashboardapp\\app.config||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
-      "RelativeMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|solutionrelative:datadashboardapp\\app.config||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|c:\\users\\alaac\\desktop\\dossier_codes\\uqac\\hiver\\atelier\\uqac-snapsort-atelier1\\datadashboardapp\\models\\optionmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|solutionrelative:datadashboardapp\\models\\optionmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\datadashboardapp\\models\\navigationmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|solutionrelative:datadashboardapp\\models\\navigationmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\datadashboardapp\\models\\albummanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|solutionrelative:datadashboardapp\\models\\albummanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\datadashboardapp\\models\\dashboard.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|solutionrelative:datadashboardapp\\models\\dashboard.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\datadashboardapp\\models\\connectionmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|solutionrelative:datadashboardapp\\models\\connectionmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|c:\\users\\alaac\\desktop\\dossier_codes\\uqac\\hiver\\atelier\\uqac-snapsort-atelier1\\datadashboardapp\\models\\sortingconfigurationform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|solutionrelative:datadashboardapp\\models\\sortingconfigurationform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|c:\\users\\alaac\\desktop\\dossier_codes\\uqac\\hiver\\atelier\\uqac-snapsort-atelier1\\datadashboardapp\\models\\optionmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|solutionrelative:datadashboardapp\\models\\optionmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|c:\\users\\alaac\\desktop\\dossier_codes\\uqac\\hiver\\atelier\\uqac-snapsort-atelier1\\datadashboardapp\\models\\sortingconfigurationform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "RelativeMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|solutionrelative:datadashboardapp\\models\\sortingconfigurationform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
     },
     {
       "AbsoluteMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\datadashboardapp\\form1.designer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -35,12 +39,16 @@
       "RelativeMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|solutionrelative:datadashboardapp\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\datadashboardapp\\models\\connectionmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|solutionrelative:datadashboardapp\\models\\connectionmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\datadashboardapp\\models\\dashboard.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|solutionrelative:datadashboardapp\\models\\dashboard.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\datadashboardapp\\config\\appsettings.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|solutionrelative:datadashboardapp\\config\\appsettings.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|c:\\users\\alaac\\desktop\\dossier_codes\\uqac\\hiver\\atelier\\uqac-snapsort-atelier1\\datadashboardapp\\app.config||{FA3CD31E-987B-443A-9B81-186104E8DAC1}",
+      "RelativeMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|solutionrelative:datadashboardapp\\app.config||{FA3CD31E-987B-443A-9B81-186104E8DAC1}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{BA05C6D3-F4B4-4600-ADDF-17574B5EC430}|DataDashboardApp\\DashboardApp.csproj|C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\datadashboardapp\\properties\\assemblyinfo.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -58,11 +66,36 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 9,
+          "SelectedChildIndex": 4,
           "Children": [
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "SortingConfigurationForm.cs [Design]",
+              "DocumentMoniker": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Models\\SortingConfigurationForm.cs",
+              "RelativeDocumentMoniker": "DataDashboardApp\\Models\\SortingConfigurationForm.cs",
+              "ToolTip": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Models\\SortingConfigurationForm.cs [Design]",
+              "RelativeToolTip": "DataDashboardApp\\Models\\SortingConfigurationForm.cs [Design]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-21T19:14:48.443Z",
+              "EditorCaption": " [Design]"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "SortingConfigurationForm.cs",
+              "DocumentMoniker": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Models\\SortingConfigurationForm.cs",
+              "RelativeDocumentMoniker": "DataDashboardApp\\Models\\SortingConfigurationForm.cs",
+              "ToolTip": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Models\\SortingConfigurationForm.cs",
+              "RelativeToolTip": "DataDashboardApp\\Models\\SortingConfigurationForm.cs",
+              "ViewState": "AgIAAD4BAAAAAAAAAAAuwFIBAAAfAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-21T19:14:09.999Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Bookmark",
@@ -70,20 +103,20 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 0,
               "Title": "ImageGallery.cs",
               "DocumentMoniker": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Models\\ImageGallery.cs",
               "RelativeDocumentMoniker": "DataDashboardApp\\Models\\ImageGallery.cs",
               "ToolTip": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Models\\ImageGallery.cs",
               "RelativeToolTip": "DataDashboardApp\\Models\\ImageGallery.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAARAAAAAAAAAA==",
+              "ViewState": "AgIAAGYAAAAAAAAAAAAWwHgAAAAkAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-03-20T17:49:26.724Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 11,
               "Title": "App.config",
               "DocumentMoniker": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\App.config",
               "RelativeDocumentMoniker": "DataDashboardApp\\App.config",
@@ -96,20 +129,20 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 9,
               "Title": "Dashboard.cs",
               "DocumentMoniker": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Models\\Dashboard.cs",
               "RelativeDocumentMoniker": "DataDashboardApp\\Models\\Dashboard.cs",
               "ToolTip": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Models\\Dashboard.cs",
               "RelativeToolTip": "DataDashboardApp\\Models\\Dashboard.cs",
-              "ViewState": "AgIAAAwAAAAAAAAAAAAAAA0AAAARAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAARAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-03-19T21:13:37.278Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 3,
               "Title": "ConnectionManager.cs",
               "DocumentMoniker": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Models\\ConnectionManager.cs",
               "RelativeDocumentMoniker": "DataDashboardApp\\Models\\ConnectionManager.cs",
@@ -122,7 +155,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 12,
               "Title": "AssemblyInfo.cs",
               "DocumentMoniker": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Properties\\AssemblyInfo.cs",
               "RelativeDocumentMoniker": "DataDashboardApp\\Properties\\AssemblyInfo.cs",
@@ -134,7 +167,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 2,
               "Title": "AlbumManager.cs",
               "DocumentMoniker": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Models\\AlbumManager.cs",
               "RelativeDocumentMoniker": "DataDashboardApp\\Models\\AlbumManager.cs",
@@ -147,45 +180,46 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 10,
               "Title": "AppSettings.cs",
               "DocumentMoniker": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Config\\AppSettings.cs",
               "RelativeDocumentMoniker": "DataDashboardApp\\Config\\AppSettings.cs",
               "ToolTip": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Config\\AppSettings.cs",
               "RelativeToolTip": "DataDashboardApp\\Config\\AppSettings.cs",
-              "ViewState": "AgIAAAwAAAAAAAAAAADwvxMAAAAJAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAAJAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-03-19T19:34:43.668Z"
+              "WhenOpened": "2025-03-19T19:34:43.668Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "NavigationManager.cs",
               "DocumentMoniker": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Models\\NavigationManager.cs",
               "RelativeDocumentMoniker": "DataDashboardApp\\Models\\NavigationManager.cs",
               "ToolTip": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Models\\NavigationManager.cs",
               "RelativeToolTip": "DataDashboardApp\\Models\\NavigationManager.cs",
-              "ViewState": "AgIAABsAAAAAAAAAAIA2wBgAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAC0AAAAAAAAAAAAYwDsAAAAPAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-03-19T19:27:08.205Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 7,
               "Title": "Form1.Designer.cs",
               "DocumentMoniker": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Form1.Designer.cs",
               "RelativeDocumentMoniker": "DataDashboardApp\\Form1.Designer.cs",
               "ToolTip": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Form1.Designer.cs",
               "RelativeToolTip": "DataDashboardApp\\Form1.Designer.cs",
-              "ViewState": "AgIAAAkAAAAAAAAAAAAqwB8AAAAJAAAAAAAAAA==",
+              "ViewState": "AgIAADAAAAAAAAAAAAAYwB8AAAAJAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-03-19T19:09:18.532Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 8,
               "Title": "Form1.cs [Design]",
               "DocumentMoniker": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Form1.cs",
               "RelativeDocumentMoniker": "DataDashboardApp\\Form1.cs",
@@ -197,7 +231,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
+              "DocumentIndex": 13,
               "Title": "UIHelper.cs",
               "DocumentMoniker": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Models\\UIHelper.cs",
               "RelativeDocumentMoniker": "DataDashboardApp\\Models\\UIHelper.cs",
@@ -209,13 +243,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 5,
               "Title": "OptionManager.cs",
               "DocumentMoniker": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Models\\OptionManager.cs",
               "RelativeDocumentMoniker": "DataDashboardApp\\Models\\OptionManager.cs",
               "ToolTip": "C:\\Users\\alaac\\Desktop\\Dossier_codes\\UQAC\\Hiver\\Atelier\\UQAC-SnapSort-Atelier1\\DataDashboardApp\\Models\\OptionManager.cs",
               "RelativeToolTip": "DataDashboardApp\\Models\\OptionManager.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAL4AAAAEAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAANAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-03-19T19:05:24.372Z",
               "EditorCaption": ""

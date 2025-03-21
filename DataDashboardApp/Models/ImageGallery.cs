@@ -1,4 +1,5 @@
 ﻿using DashboardApp.Config;
+using DashboardApp.Views;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -115,7 +116,9 @@ namespace DashboardApp.Models
 
         private void SortImages(object sender, EventArgs e)
         {
-            //On Charge la page des options avancées pour trier é
+            // Redirection vers la page des options avancées de tri (OptionManager)
+            SortingConfigurationForm SortingConfigurationForm = new SortingConfigurationForm(mainPanel, mainPanel.Width);
+            SortingConfigurationForm.CreateOptionView();
         }
     }
 }
