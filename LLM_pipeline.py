@@ -12,7 +12,7 @@ import pandas as pd
 from tabulate import tabulate
 import numpy as np
 
-DIRECTORY = "photos_victor"
+DIRECTORY = "test_data_copy"
 MODEL = "gemma3"
 
 
