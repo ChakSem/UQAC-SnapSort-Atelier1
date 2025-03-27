@@ -1,3 +1,5 @@
+import shutil
+import time
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain.schema import AIMessage
@@ -11,10 +13,11 @@ import os
 import pandas as pd
 from tabulate import tabulate
 import numpy as np
+from Categories_TreeStructure import create_category_folders_from_csv
 
-DIRECTORY = "test_data_copy"
+DIRECTORY = "photos_victor"
 MODEL = "gemma3"
-
+DESTINATION_DIRECORY = "TreeStructure"
 
 def extract_json(response_text):
     """
@@ -310,7 +313,7 @@ class LLMCall:
     def pipeline_categories(self, limit_size=20):
         new_keywords = self.df.set_index("image_name")["keywords"].to_dict()
         # print(new_keywords)
-        cat_list = ["Paysage", "Ville", "Plage", "Randonnée", "Sport", "Musée", "Restaurant", "Autres"]
+        cat_list = ["Paysage", "Ville", "Plage", "Randonnée", "Sport", "Musée", "Restaurant", "Autres", "Loisirs", "Repas", "Nature", "Voyage", "Culture", "Animaux"]
 
         cat_chain = self.prompt_chain | self.llm
 
@@ -334,18 +337,34 @@ class LLMCall:
         return self.df
 
 
-    def pipeline(self):
+    def pipeline(self, strating_time):
         print("RECHERCHE DE MOTS CLES...")
         self.df = self.pipeline_keywords()
+        keywords_time = time.time() - strating_time
         print(tabulate(self.df, headers="keys", tablefmt="psql"))
+        print(f"Temps de recherche des mots clés : {keywords_time:.2f} secondes")
 
         print("RECHERCHE DES CATEGORIES...")
         self.df = self.pipeline_categories()
+        categories_time = time.time() - strating_time
         print(tabulate(self.df, headers="keys", tablefmt="psql"))
+        print(f"Temps de recherche des catégories : {categories_time:.2f} secondes")
 
         self.dataframe_manager.save_to_csv(self.directory + ".csv")
 
+
+
+
 if __name__ == "__main__":
     call = LLMCall(directory=DIRECTORY, model=MODEL)
+    starting_time = time.time()
 
-    call.pipeline()
+    call.pipeline(starting_time)
+
+    if os.path.exists(DESTINATION_DIRECORY):
+        shutil.rmtree(DESTINATION_DIRECORY)
+
+    os.mkdir(DESTINATION_DIRECORY)
+
+    create_category_folders_from_csv(DIRECTORY + ".csv", DESTINATION_DIRECORY)
+
