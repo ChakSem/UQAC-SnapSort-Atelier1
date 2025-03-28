@@ -85,6 +85,9 @@ dependencies {
     implementation ("androidx.annotation:annotation:1.3.0")
     implementation("androidx.datastore:datastore-preferences:1.0.0")
     implementation(libs.androidx.appcompat)
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("io.coil-kt:coil-compose:2.5.0")
+
 
 
     debugImplementation("androidx.compose.ui:ui-test-manifest")

@@ -43,14 +43,19 @@ fun HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(32.dp))
-
-            Image(
-                painter = painterResource(id = R.drawable.logo_snapsort),
-                contentDescription = "Logo SnapSort",
+            Box(
                 modifier = Modifier
-                    .width(200.dp)
-                    .height(200.dp)
-            )
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.logo_snapsort),
+                    contentDescription = "Logo SnapSort",
+                    modifier = Modifier
+                        .width(200.dp)
+                        .height(200.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -87,7 +92,7 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = { navController.navigate("WifiResultsScreen") },
+                onClick = { navController.navigate("HotSpotConnection") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp),

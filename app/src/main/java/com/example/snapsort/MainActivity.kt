@@ -12,7 +12,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavController
 import androidx.navigation.compose.*
 import com.example.snapsort.ui.HomeScreen
-import com.example.snapsort.ui.WifiResultsScreen
+import com.example.snapsort.ui.HotSpotConnection
+import com.example.snapsort.ui.ImagesTransferConfiguration
 
 
 class MainActivity : ComponentActivity() {
@@ -31,7 +32,8 @@ fun AppNavigation() {
 
     NavHost(navController = navController, startDestination = "home") {
         composable("home") { HomeScreen(navController) }
-        composable("WifiResultsScreen") { WifiResultsScreen(navController)}
+        composable("HotSpotConnection") { HotSpotConnection(navController)}
+        composable("ImagesTransferConfiguration") { ImagesTransferConfiguration(navController) }
     }
 }
 
