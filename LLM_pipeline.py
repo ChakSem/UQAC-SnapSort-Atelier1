@@ -14,8 +14,11 @@ import pandas as pd
 from tabulate import tabulate
 import numpy as np
 from Categories_TreeStructure import create_category_folders_from_csv
+import torch
+from transformers import CLIPProcessor, CLIPModel
+from sklearn.metrics.pairwise import cosine_similarity
 
-DIRECTORY = "photos_victor"
+DIRECTORY = "test_data"
 MODEL = "gemma3"
 DESTINATION_DIRECORY = "TreeStructure"
 
@@ -335,6 +338,91 @@ class LLMCall:
                 all_categories = True
 
         return self.df
+    
+    def pipeline_categories_embedding(self, threshold=0.2, batch_size=10, predefined_categories=None):
+        if predefined_categories is None:
+            predefined_categories = ["Ville", "Plage", "Randonnée", "Sport", "Musée", "Restaurant", "Voyages", "Nature", "Autres"]
+
+        clip_model = CLIPModel.from_pretrained("laion/CLIP-ViT-L-14-laion2B-s32B-b82K")
+        clip_processor = CLIPProcessor.from_pretrained("laion/CLIP-ViT-L-14-laion2B-s32B-b82K")
+        
+        # Ajout de traduction anglaise pour chaque catégorie pour améliorer la correspondance car CLIP fonctionne mieux en anglais qu'en français
+        fr_to_en = {
+            "Ville": "City urban buildings",
+            "Plage": "Beach sea ocean sand",
+            "Randonnée": "Hiking trail mountain path",
+            "Sport": "Sports activity athletic",
+            "Musée": "Museum exhibition art gallery",
+            "Restaurant": "Restaurant dining food",
+            "Voyages": "Travel vacation snow",
+            "Nature": "Nature wildlife environment flora fauna",
+            "Autres": "Miscellaneous other"
+        }
+        
+        en_categories = [fr_to_en.get(cat, cat) for cat in predefined_categories]
+        
+        # Convertit la liste de descriptions en tenseurs PyTorch
+        # Padding pour même longueur
+        text_inputs = clip_processor(text=en_categories, return_tensors="pt", padding=True)
+
+        # Economie de mémoire
+        with torch.no_grad():
+            category_embeddings = clip_model.get_text_features(**text_inputs)
+        
+        # Normalisation des embeddings
+        category_embeddings = category_embeddings / category_embeddings.norm(p=2, dim=-1, keepdim=True)
+        category_embeddings = category_embeddings.cpu().numpy()
+        
+        # Préchargement des images
+        images = []
+        valid_indices = []
+        
+        for idx, row in self.df.iterrows():
+            image_path = row["path"]
+            try:
+                image = Image.open(image_path).convert("RGB")
+                images.append(image)
+                valid_indices.append(idx)
+            except Exception as e:
+                print(f"Erreur lors du chargement de l'image {image_path}: {e}")
+                self.df.loc[idx, "assigned_category"] = "Autres"
+                continue
+        
+        # Traitement par lots
+        for i in range(0, len(images), batch_size):
+            batch_images = images[i:i+batch_size]
+            batch_indices = valid_indices[i:i+batch_size]
+            
+            # Prétraitement des images en batch
+            image_inputs = clip_processor(images=batch_images, return_tensors="pt", padding=True)
+            
+            with torch.no_grad():
+                image_embeddings = clip_model.get_image_features(**image_inputs)
+            
+            # Normalisation
+            image_embeddings = image_embeddings / image_embeddings.norm(p=2, dim=-1, keepdim=True)
+            image_embeddings = image_embeddings.cpu().numpy()
+            
+            # Calcul des similarités pour tout le batch
+            similarities = cosine_similarity(image_embeddings, category_embeddings)
+            
+            for j, (idx, sims) in enumerate(zip(batch_indices, similarities)):
+                # Normalisation des similarités
+                if np.max(sims) - np.min(sims) > 1e-8:  # Éviter la division par zéro
+                    normalized_sims = (sims - np.min(sims)) / (np.max(sims) - np.min(sims))
+                else:
+                    normalized_sims = sims
+                
+                best_sim = np.max(normalized_sims)
+                best_cat_idx = np.argmax(normalized_sims)
+                best_cat = predefined_categories[best_cat_idx]
+                
+                # Si la différence est trop faible retourner "Autres"
+                if best_sim < threshold:
+                    self.df.loc[idx, "categories"] = "Autres"
+                else:
+                    self.df.loc[idx, "categories"] = best_cat
+        return self.df
 
 
     def pipeline(self, strating_time):
@@ -345,7 +433,8 @@ class LLMCall:
         print(f"Temps de recherche des mots clés : {keywords_time:.2f} secondes")
 
         print("RECHERCHE DES CATEGORIES...")
-        self.df = self.pipeline_categories()
+        #self.df = self.pipeline_categories()
+        self.df = self.pipeline_categories_embedding()
         categories_time = time.time() - strating_time
         print(tabulate(self.df, headers="keys", tablefmt="psql"))
         print(f"Temps de recherche des catégories : {categories_time:.2f} secondes")
