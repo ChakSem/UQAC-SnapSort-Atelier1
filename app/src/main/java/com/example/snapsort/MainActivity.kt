@@ -1,5 +1,6 @@
 package com.example.snapsort
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,7 +14,9 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.*
 import com.example.snapsort.ui.HomeScreen
 import com.example.snapsort.ui.HotSpotConnection
+import com.example.snapsort.ui.ImageDCMILoader
 import com.example.snapsort.ui.ImagesTransferConfiguration
+import com.example.snapsort.ui.TutorialSwipeableScreen
 
 
 class MainActivity : ComponentActivity() {
@@ -25,6 +28,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@SuppressLint("NewApi")
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
@@ -34,6 +38,9 @@ fun AppNavigation() {
         composable("home") { HomeScreen(navController) }
         composable("HotSpotConnection") { HotSpotConnection(navController)}
         composable("ImagesTransferConfiguration") { ImagesTransferConfiguration(navController) }
+        composable("TutorialSwipeableScreen") { TutorialSwipeableScreen(navController) }
+        composable("ImageDCMI") { ImageDCMILoader(navController) }
+
     }
 }
 
