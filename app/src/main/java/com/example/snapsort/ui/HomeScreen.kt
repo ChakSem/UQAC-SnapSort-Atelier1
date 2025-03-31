@@ -107,7 +107,7 @@ fun HomeScreen(
             }
 
             Button(
-                onClick = { /* Gérer l'action du bouton Tutoriel */ },
+                onClick = { navController.navigate("TutorialSwipeableScreen")},
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp),

@@ -69,15 +69,16 @@ fun HotSpotConnection(
             // TODO: Faire un slider qui permet de naviguer sur un tutotiel
 
             onClick = {
-                val tutorialUrl = "YOUR_TUTORIAL_URL_HERE" // Replace with your tutorial URL
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(tutorialUrl))
-                context.startActivity(intent)
+                navController.navigate("TutorialSwipeableScreen") {
+                    popUpTo("TutorialSwipeableScreen") { inclusive = true }
+                }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
             Icon(Icons.Default.Info, contentDescription = "Tutorial")
             Spacer(Modifier.width(8.dp))
             Text("Besoin d'aide ? Tutoriel")
+
         }
     }
 }
