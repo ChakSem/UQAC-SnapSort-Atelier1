@@ -1,7 +1,7 @@
 import shutil
 import time
-from langchain_ollama import ChatOllama, OllamaEmbeddings
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_ollama import ChatOllama
+from langchain_core.messages import HumanMessage
 from langchain.schema import AIMessage
 import json
 import re
@@ -434,13 +434,12 @@ class LLMCall:
 
         print("RECHERCHE DES CATEGORIES...")
         #self.df = self.pipeline_categories()
-        self.df = self.pipeline_categories()
+        self.df = self.pipeline_categories_embedding()
         categories_time = time.time() - strating_time
         print(tabulate(self.df, headers="keys", tablefmt="psql"))
         print(f"Temps de recherche des catégories : {categories_time:.2f} secondes")
 
         self.dataframe_manager.save_to_csv(self.directory + ".csv")
-
 
 
 
@@ -456,4 +455,7 @@ if __name__ == "__main__":
     os.mkdir(DESTINATION_DIRECORY)
 
     create_category_folders_from_csv(DIRECTORY + ".csv", DESTINATION_DIRECORY)
+
+    total_time = time.time() - starting_time
+    print(f"Temps total d'exécution : {total_time:.2f} secondes")
 
