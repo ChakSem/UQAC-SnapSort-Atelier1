@@ -20,7 +20,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 DIRECTORY = "test_data"
 MODEL = "gemma3"
-DESTINATION_DIRECORY = "TreeStructure"
+DESTINATION_DIRECORY = "results"
 
 def extract_json(response_text):
     """
@@ -434,7 +434,7 @@ class LLMCall:
 
         print("RECHERCHE DES CATEGORIES...")
         #self.df = self.pipeline_categories()
-        self.df = self.pipeline_categories_embedding()
+        self.df = self.pipeline_categories()
         categories_time = time.time() - strating_time
         print(tabulate(self.df, headers="keys", tablefmt="psql"))
         print(f"Temps de recherche des catégories : {categories_time:.2f} secondes")

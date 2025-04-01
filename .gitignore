@@ -20,3 +20,6 @@ secret.py
 #CSV files
 *.csv
 
+# snapsort
+snapsort/
+
