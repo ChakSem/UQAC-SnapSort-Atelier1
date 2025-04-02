@@ -3,7 +3,8 @@ import path from 'path';
 import fs from 'fs';
 import { isDev, cleanTempFolder, generateThumbnail } from './util.js';
 import { getPreloadPath, getPythonScriptPath } from './pathResolver.js';
-import { startHotspot, getSSID, getSecurityKey, extractSSID, extractUserSecurityKey, getPhoneIpAddress, extractIpAddress } from './connexion.js';
+import { startHotspot, getSSID, getSecurityKey, extractSSID, extractUserSecurityKey,getHotspotInfo,getConnectedDevices} from './connexion.js';
+import { startImageTransferService, generateTransferQRCode,transferEvents,getLocalIpAddress } from './server.js';
 import store from "./store.js";
 import { getFolders } from './folderManager.js';
 import { runPipeline } from './python.js';
@@ -154,7 +155,16 @@ ipcMain.handle("get-media-files", async (_, directoryPath) => {
 });
 
 // Connexion to the phone mobile
-
+ipcMain.handle('get-connected-ips', async () => {
+  // Vous pouvez ici exécuter une commande pour récupérer les IP connectées
+  // par exemple en utilisant `exec` pour exécuter la commande `arp -a` et retourner les résultats
+  const result = await getConnectedDevices();
+  if (!Array.isArray(result)) {
+    return { error: "Failed to retrieve connected devices" };
+  }
+  // Traiter le résultat pour extraire les adresses IP
+  return result;
+});
 ipcMain.handle("start-hotspot", async () => {
   try {
       // Démarrer le hotspot
@@ -185,21 +195,78 @@ ipcMain.handle("start-hotspot", async () => {
   }
 });
 
+
 // Récupérer l'adresse IP
 ipcMain.handle("get-ip", async () => {
   try {
-    let ipAddress = await getPhoneIpAddress();
+    let ipAddress = await getHotspotInfo();
     if (ipAddress) {
-      ipAddress = extractIpAddress(ipAddress);
+      return ipAddress;
+    } else {
+      return { error: "No IP address found" };
     }
-    return ipAddress; // This will be sent back to the renderer process
   } catch (error) {
-    console.error("Error fetching IP:", error);
+    console.error("Error getting IP address:", error);
+    return { error: "Error getting IP address" };
+  }
+}
+);
+// Récupérer les dossiers
+ipcMain.handle("get-folders", async (_, rootPath) => {
+  return getFolders(rootPath);
+});
+
+
+// Configurer les gestionnaires d'événements IPC
+ipcMain.handle('start-image-transfer-service', async () => {
+  try {
+    const result = await startImageTransferService();
+    return result;
+  } catch (error) {
+    console.error('Erreur lors du démarrage du service:', error);
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+ipcMain.handle('generate-transfer-qrcode', async (event, wifiString, serverIp) => {
+  try {
+    const qrCodeData = generateTransferQRCode(wifiString, serverIp);
+    return qrCodeData;
+  } catch (error) {
+    console.error('Erreur lors de la génération du QR code:', error);
     return null;
   }
 });
 
-// Récupérer les dossiers
-ipcMain.handle("get-folders", async (_, rootPath) => {
-  return getFolders(rootPath);
+// Relayer les événements de transfert vers le renderer
+transferEvents.on('transfer:start', (data: { [key: string]: any }) => {
+  BrowserWindow.getAllWindows().forEach(window => {
+    if (!window.isDestroyed()) {
+      window.webContents.send('transfer:start', data);
+    }
+  });
+});
+
+transferEvents.on('transfer:progress', (data: { [key: string]: any }) => {
+  BrowserWindow.getAllWindows().forEach(window => {
+    if (!window.isDestroyed()) {
+      window.webContents.send('transfer:progress', data);
+    }
+  });
+});
+
+transferEvents.on('transfer:complete', (data: { [key: string]: any }) => {
+  BrowserWindow.getAllWindows().forEach(window => {
+    if (!window.isDestroyed()) {
+      window.webContents.send('transfer:complete', data);
+    }
+  });
+});
+
+transferEvents.on('transfer:error', (data: { [key: string]: any }) => {
+  BrowserWindow.getAllWindows().forEach(window => {
+    if (!window.isDestroyed()) {
+      window.webContents.send('transfer:error', data);
+    }
+  });
 });
