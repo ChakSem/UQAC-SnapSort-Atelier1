@@ -52,6 +52,13 @@ import java.net.Socket
 import java.net.SocketTimeoutException
 import java.text.SimpleDateFormat
 import java.util.*
+import java.io.BufferedWriter
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.Inet4Address
+import java.net.NetworkInterface
+import java.net.URL
+
 
 data class DateRange(
     val startDate: Long,
@@ -601,7 +608,6 @@ fun checkPermissions(context: Context): Boolean {
     return true
 }
 
-// Fonctions de transfert
 private suspend fun transferImages(
     context: Context,
     images: List<ImageInfo>,
@@ -623,97 +629,114 @@ private suspend fun transferImages(
         Log.d("ImagesTransfer", "Serveur trouvé à l'adresse: $serverIp")
 
         withContext(Dispatchers.IO) {
-            // Connexion au serveur avec timeout
-            val socket = Socket()
-            socket.connect(InetSocketAddress(serverIp, serverPort), 5000)
-            val outputStream = socket.getOutputStream()
+            // Créer une connexion HTTP
+            val url = URL("http://$serverIp:$serverPort")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.doOutput = true
+            connection.connectTimeout = 10000 // 10 seconds
+            connection.readTimeout = 60000   // 60 seconds
+            connection.setRequestProperty("Content-Type", "application/octet-stream")
+            connection.connect()
+
+            val outputStream = connection.outputStream
+            val writer = BufferedWriter(OutputStreamWriter(outputStream))
 
             try {
-                // Envoyer le nombre d'images à transférer
-                outputStream.write(images.size.toString().toByteArray())
-                outputStream.write("\n".toByteArray())
+                // Envoyer le nombre total d'images comme première ligne
+                writer.write(images.size.toString())
+                writer.write("\n")
+                writer.flush()
 
                 // Transférer chaque image
                 images.forEachIndexed { index, imageInfo ->
-                    transferSingleImage(context, imageInfo, outputStream)
-
-                    // Mettre à jour la progression
-                    val progress = (index + 1).toFloat() / images.size
-                    withContext(Dispatchers.Main) {
-                        onProgressUpdate(progress, index + 1)
+                    try {
+                        transferSingleImage(context, imageInfo, outputStream, writer)
+                        
+                        // Mettre à jour la progression
+                        val progress = (index + 1).toFloat() / images.size
+                        withContext(Dispatchers.Main) {
+                            onProgressUpdate(progress, index + 1)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ImagesTransfer", "Erreur lors du transfert de l'image ${index + 1}", e)
+                        // Continuer avec l'image suivante plutôt que d'arrêter tout le processus
                     }
                 }
 
-                true
+                // Lire la réponse du serveur
+                val responseCode = connection.responseCode
+                val responseMessage = connection.responseMessage
+                Log.d("ImagesTransfer", "Réponse du serveur: $responseCode $responseMessage")
+
+                responseCode == HttpURLConnection.HTTP_OK
             } finally {
                 try {
-                    socket.close()
+                    outputStream.close()
+                    writer.close()
+                    connection.disconnect()
                 } catch (e: Exception) {
-                    Log.e("ImagesTransfer", "Erreur lors de la fermeture du socket", e)
+                    Log.e("ImagesTransfer", "Erreur lors de la fermeture des ressources", e)
                 }
             }
         }
-    } catch (e: SocketTimeoutException) {
-        Log.e("ImagesTransfer", "Timeout lors de la connexion au serveur", e)
-        throw Exception("Délai d'attente dépassé lors de la connexion au serveur")
     } catch (e: Exception) {
         Log.e("ImagesTransfer", "Erreur lors du transfert", e)
         throw e
     }
 }
-
-private fun transferSingleImage(context: Context, imageInfo: ImageInfo, outputStream: OutputStream) {
+private fun transferSingleImage(
+    context: Context,
+    imageInfo: ImageInfo,
+    outputStream: OutputStream,
+    writer: BufferedWriter
+) {
     context.contentResolver.openInputStream(imageInfo.uri)?.use { inputStream ->
         try {
             // Obtenir un nom de fichier significatif
             val file = File(imageInfo.path)
             val fileName = file.name
 
-            // Envoyer le nom du fichier
-            outputStream.write(fileName.toByteArray())
-            outputStream.write("\n".toByteArray())
+            // Envoyer le nom du fichier sur une ligne
+            writer.write(fileName)
+            writer.write("\n")
 
-            // Envoyer la date de prise de vue
+            // Formatter la date au format attendu par le serveur (YYYYMMDD_HHmmss)
             val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
             val dateString = dateFormat.format(Date(imageInfo.dateTaken))
-            outputStream.write(dateString.toByteArray())
-            outputStream.write("\n".toByteArray())
+            writer.write(dateString)
+            writer.write("\n")
 
-            // Taille du buffer pour le transfert (8KB)
-            val bufferSize = 8 * 1024
-
-            // Récupérer la taille disponible
-            val available = inputStream.available()
-
-            // Envoyer la taille du fichier
-            outputStream.write(available.toString().toByteArray())
-            outputStream.write("\n".toByteArray())
+            // Récupérer et envoyer la taille du fichier
+            val fileSize = inputStream.available()
+            writer.write(fileSize.toString())
+            writer.write("\n")
+            writer.flush()
 
             // Transférer le contenu du fichier
-            val buffer = ByteArray(bufferSize)
+            val buffer = ByteArray(8 * 1024)
             var bytesRead: Int
             var totalRead = 0
 
             while (inputStream.read(buffer).also { bytesRead = it } != -1) {
                 outputStream.write(buffer, 0, bytesRead)
                 totalRead += bytesRead
+                outputStream.flush() // Flush plus fréquent pour éviter les blocages
             }
-
-            outputStream.flush()
 
             Log.d("ImagesTransfer", "Image transférée: $fileName ($totalRead octets)")
         } catch (e: Exception) {
-            Log.e("ImagesTransfer", "Erreur lors du transfert de l'image", e)
+            Log.e("ImagesTransfer", "Erreur lors du transfert de l'image ${imageInfo.path}", e)
             throw e
         }
-    } ?: throw Exception("Impossible d'ouvrir l'image")
+    } ?: throw Exception("Impossible d'ouvrir l'image ${imageInfo.path}")
 }
-
 private fun getWifiIpAddress(context: Context): String? {
     try {
+        // D'abord, essayer via le WifiManager
         val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val ipAddress = wifiManager.connectionInfo.ipAddress
-
+        
         // Convertir l'entier en adresse IP
         if (ipAddress != 0) {
             return String.format(
@@ -724,47 +747,120 @@ private fun getWifiIpAddress(context: Context): String? {
                 ipAddress shr 24 and 0xff
             )
         }
+        
+        // Si WifiManager échoue, essayer via les interfaces réseau (fonctionne en hotspot aussi)
+        val networkInterfaces = NetworkInterface.getNetworkInterfaces()
+        while (networkInterfaces.hasMoreElements()) {
+            val networkInterface = networkInterfaces.nextElement()
+            val addresses = networkInterface.inetAddresses
+            
+            while (addresses.hasMoreElements()) {
+                val address = addresses.nextElement()
+                if (!address.isLoopbackAddress && address is Inet4Address) {
+                    return address.hostAddress
+                }
+            }
+        }
     } catch (e: Exception) {
         Log.e("ImagesTransfer", "Erreur lors de la récupération de l'adresse IP", e)
     }
-
+    
     return null
 }
-
 private suspend fun findServer(networkPrefix: String, port: Int): String? = withContext(Dispatchers.IO) {
-    // On va essayer les adresses classiques d'abord
-    val commonAddresses = listOf("1", "100", "101", "254")
-
-    for (lastOctet in commonAddresses) {
+    // Adresses les plus probables à essayer en premier
+    val priorityAddresses = listOf(
+        "1",    // Souvent utilisé par les routeurs
+        "100",  // Adresse commune pour les points d'accès
+        "101",  // Adresse commune secondaire
+        "254"   // Dernière adresse souvent utilisée par les hôtes
+    )
+    
+    // D'abord, tester si le serveur est sur notre propre machine
+    try {
+        val socket = Socket()
+        socket.connect(InetSocketAddress("127.0.0.1", port), 300)
+        socket.close()
+        Log.d("ImagesTransfer", "Serveur trouvé sur localhost")
+        return@withContext "127.0.0.1"
+    } catch (e: Exception) {
+        // Ignorer et continuer
+    }
+    
+    // Ensuite, essayer les adresses prioritaires
+    for (lastOctet in priorityAddresses) {
         val potentialServer = "$networkPrefix.$lastOctet"
         try {
             val socket = Socket()
+            socket.soTimeout = 500
             socket.connect(InetSocketAddress(potentialServer, port), 500)
+            
+            // Vérifier si c'est bien notre serveur en envoyant une requête GET
+            try {
+                val urlConnection = URL("http://$potentialServer:$port").openConnection() as HttpURLConnection
+                urlConnection.requestMethod = "GET"
+                urlConnection.connectTimeout = 500
+                urlConnection.readTimeout = 500
+                val responseCode = urlConnection.responseCode
+                
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    socket.close()
+                    Log.d("ImagesTransfer", "Serveur vérifié à l'adresse $potentialServer")
+                    return@withContext potentialServer
+                }
+            } catch (e: Exception) {
+                // Si la connexion TCP a réussi mais la requête HTTP a échoué,
+                // considérons quand même que c'est peut-être notre serveur
+                socket.close()
+                Log.d("ImagesTransfer", "Serveur potentiel trouvé à $potentialServer (sans vérification HTTP)")
+                return@withContext potentialServer
+            }
+            
             socket.close()
-            return@withContext potentialServer
         } catch (e: Exception) {
-            // Ignorer les échecs et passer à l'adresse suivante
-            continue
+            // Ignorer et essayer l'adresse suivante
         }
     }
-
-    // Pas trouvé avec les adresses classiques, on va scanner le réseau
-    for (i in 1..254) {
-        val potentialServer = "$networkPrefix.$i"
-        try {
-            val socket = Socket()
-            socket.connect(InetSocketAddress(potentialServer, port), 300)
-            socket.close()
-            return@withContext potentialServer
-        } catch (e: Exception) {
-            // Ignorer les échecs et passer à l'adresse suivante
-            continue
+    
+    // Scan progressif du réseau, en commençant par les adresses plus susceptibles d'être assignées
+    // aux serveurs ou PC (2-20, 100-110, 200-254)
+    val scanRanges = listOf(2..20, 100..110, 200..254, 21..99, 111..199)
+    
+    for (range in scanRanges) {
+        for (i in range) {
+            val potentialServer = "$networkPrefix.$i"
+            try {
+                val socket = Socket()
+                socket.connect(InetSocketAddress(potentialServer, port), 300)
+                socket.close()
+                Log.d("ImagesTransfer", "Serveur trouvé à l'adresse $potentialServer")
+                return@withContext potentialServer
+            } catch (e: Exception) {
+                // Ignorer les échecs et passer à l'adresse suivante
+                continue
+            }
         }
     }
+    
     null // Aucun serveur trouvé
-} // Fin de la fonction findServer
-
+}
 private fun getFormattedDate(date: Long): String {
     val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
     return dateFormat.format(Date(date))
+}
+
+private suspend fun verifyServerAvailability(serverIp: String, port: Int): Boolean = withContext(Dispatchers.IO) {
+    try {
+        val url = URL("http://$serverIp:$port")
+        val connection = url.openConnection() as HttpURLConnection
+        connection.requestMethod = "GET"
+        connection.connectTimeout = 2000
+        connection.readTimeout = 2000
+        
+        val responseCode = connection.responseCode
+        return@withContext responseCode == HttpURLConnection.HTTP_OK
+    } catch (e: Exception) {
+        Log.e("ImagesTransfer", "Erreur lors de la vérification du serveur", e)
+        return@withContext false
+    }
 }
