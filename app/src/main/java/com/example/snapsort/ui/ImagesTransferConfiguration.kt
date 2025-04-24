@@ -34,16 +34,12 @@
     import androidx.compose.ui.platform.LocalContext
     import androidx.compose.ui.res.painterResource
     import androidx.compose.ui.text.font.FontWeight
-    import androidx.compose.ui.text.style.TextAlign
     import androidx.compose.ui.unit.dp
     import androidx.compose.ui.unit.sp
     import androidx.core.content.ContextCompat
     import androidx.navigation.NavController
-    import coil.compose.AsyncImagePainter
     import coil.compose.rememberAsyncImagePainter
-    import coil.request.ImageRequest
     import com.example.snapsort.R
-    import kotlinx.coroutines.CoroutineScope
     import kotlinx.coroutines.Dispatchers
     import kotlinx.coroutines.Job
     import kotlinx.coroutines.launch
@@ -52,7 +48,6 @@
     import java.io.OutputStream
     import java.net.InetSocketAddress
     import java.net.Socket
-    import java.net.SocketTimeoutException
     import java.text.SimpleDateFormat
     import java.util.*
     import java.io.BufferedWriter
@@ -62,12 +57,7 @@
     import java.net.NetworkInterface
     import java.net.URL
     
-    
-    data class DateRange(
-        val startDate: Long,
-        val endDate: Long
-    )
-    
+
     data class ImageInfo(
         val uri: Uri,
         val dateTaken: Long,
@@ -358,6 +348,13 @@
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
+                             // Date de fin (plus ancienne)
+                             val endDate = maxDate - ((maxDate - minDate) * dateRange.endInclusive).toLong()
+                             Text(
+                                 text = "Fin: ${dateFormat.format(Date(endDate))}",
+                                 style = MaterialTheme.typography.bodyMedium
+                             )
+                             
                             // Date de début (plus récente)
                             val startDate = maxDate - ((maxDate - minDate) * dateRange.start).toLong()
                             Text(
@@ -365,12 +362,7 @@
                                 style = MaterialTheme.typography.bodyMedium
                             )
 
-                            // Date de fin (plus ancienne)
-                            val endDate = maxDate - ((maxDate - minDate) * dateRange.endInclusive).toLong()
-                            Text(
-                                text = "Fin: ${dateFormat.format(Date(endDate))}",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+                           
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -693,32 +685,7 @@
         Log.d(tag, "Total d'images trouvées: ${imageInfoList.size}")
         return imageInfoList
     }
-    
-    // Fonction pour charger les images depuis un dossier spécifique
-    private fun loadImagesFromFolder(
-        context: Context,
-        folder: String,
-        coroutineScope: CoroutineScope,
-        callback: (List<ImageInfo>, String?) -> Unit
-    ) {
-        coroutineScope.launch {
-            try {
-                Log.d("ImagesTransfer", "Chargement des images du dossier: $folder")
-    
-                // Utiliser withContext pour effectuer la requête en arrière-plan
-                val loadedImages = withContext(Dispatchers.IO) {
-                    getImagesFromFolder(context, folder)
-                }
-    
-                Log.d("ImagesTransfer", "Nombre d'images trouvées: ${loadedImages.size}")
-                callback(loadedImages, null)
-            } catch (e: Exception) {
-                val errorMsg = "Erreur lors du chargement des images: ${e.message}"
-                Log.e("ImagesTransfer", errorMsg, e)
-                callback(emptyList(), errorMsg)
-            }
-        }
-    }
+
     
     // Fonction pour obtenir les dossiers disponibles - Simplifiée pour se concentrer sur DCIM
     private fun getDCIMFolders(context: Context): List<String> {
@@ -773,19 +740,7 @@
             )
         }
     }
-    @RequiresApi(Build.VERSION_CODES.R)
-    fun checkPermissions(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            return context.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) ==
-                    PackageManager.PERMISSION_GRANTED
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return Environment.isExternalStorageManager() ||
-                    context.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) ==
-                    PackageManager.PERMISSION_GRANTED
-        }
-        return true
-    }
-    
+
     private suspend fun transferImages(
         context: Context,
         images: List<ImageInfo>,

@@ -1,7 +1,6 @@
 package com.example.snapsort.ui
 
-import android.content.Intent
-import android.net.Uri
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Wifi
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HotSpotConnection(
     navController: NavController,
@@ -55,6 +53,7 @@ fun HotSpotConnection(
                 // Si la connexion est réussie, naviguez vers la prochaine étape.
                 // Sinon, affichez un message d'erreur.
                 // Pour l'instant on navigue directement.
+
                 // TODO: Faire une pop up de confirmation avant de naviguer , en lui affichant le SSID du réseau connecté et lui dire de vérifier que c'est bien le bon réseau.
                 navController.navigate("ImagesTransferConfiguration")
             },
