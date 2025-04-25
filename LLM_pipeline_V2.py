@@ -1,11 +1,5 @@
 import shutil
 import time
-from langchain_ollama import ChatOllama
-from langchain_core.messages import HumanMessage
-from langchain.schema import AIMessage
-import json
-import re
-from langchain_core.runnables import RunnableLambda
 import base64
 from PIL import Image
 import io
@@ -19,29 +13,8 @@ from transformers import CLIPProcessor, CLIPModel
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import DBSCAN
 
-DIRECTORY = "test_data_copy"
-MODEL = "gemma3"
+DIRECTORY = "test_data"
 DESTINATION_DIRECORY = "results"
-
-def extract_json(response_text):
-    """
-    Extrait la portion JSON (délimitée par {}) de la réponse textuelle pour seulement avoir le dictionnaire
-    et non le texte généré par l'ia.
-
-    :param response_text: Texte contenant le JSON.
-    :return: Dictionnaire Python obtenu à partir du JSON.
-    """
-    match = re.search(r'\{.*\}', response_text, re.DOTALL)
-    if match:
-        json_str = match.group()
-        try:
-            return json.loads(json_str)
-        except Exception as e:
-            print(f"Erreur lors du chargement du JSON : {e}")
-            return None
-    else:
-        print("Aucun JSON trouvé dans la réponse.")
-        return None
 
 def encode_image(image_path, max_size=(512, 512), quality=80):
     image = Image.open(image_path)
@@ -102,24 +75,6 @@ class DataframeCompletion:
 
         except Exception as e:
             print(f"Erreur lors de la sauvegarde : {e}")
-
-    def add_keywords_to_df(self, keywords_output):
-        if keywords_output:
-            self.df.loc[self.df["image_name"].isin(keywords_output.keys()), "keywords"] = self.df["image_name"].map(keywords_output)
-        else:
-            print("Aucun mot clé fourni ! ")
-        return self.df
-
-    def add_categories_to_df(self, categories_output):
-        if categories_output:
-            # Inversion du dict : on associe une categorie a chaque image
-            image_to_categories = {img: cat for cat, images in categories_output.items() for img in images}
-
-            self.df.loc[self.df["image_name"].isin(image_to_categories.keys()), "categories"] = self.df["image_name"].map(image_to_categories)
-        else:
-            print("Aucune catégorisation trouvée !")
-
-        return self.df
 
 class ClusteringManager:
     def __init__(self, df, device="cpu"):
@@ -183,78 +138,99 @@ class ClusteringManager:
                     })
         return embeddings_dict
 
-    def matrice_similarities(self, embeddings_dict):
-        similarities_matrices = {}
+    def neighbors_similarity_clustering(self, embeddings_dict, threshold=0.6, n_neighbors=3):
+        clusters_by_day = {}
+        global_cluster_id = 0  # Compteur global pour l'ID de cluster
+        
         for day, image_list in embeddings_dict.items():
             paths = [image['path'] for image in image_list]
             embeddings = np.array([image['embedding'] for image in image_list])
             N = len(paths)
-            similarities = np.zeros((N, N))
-
-            for i in range(N):
-                for j in range(N):
-                    sim = np.dot(embeddings[i], embeddings[j])
-                    similarities[i][j] = sim
-
-            similarities_matrices[day] = ({'paths': paths, 'similarities': similarities})
-
-        return similarities_matrices
-
-    def cluster_from_similarity_matrices(self, similarities_matrices_dict, threshold=0.6):
-        clusters_by_day = {}
-
-        for day, data in similarities_matrices_dict.items():
-            paths = data["paths"]
-            sim_matrix = data["similarities"]
-
-            # Ensure distance matrix has only non-negative values
-            distance_matrix = 1 - sim_matrix
-            distance_matrix = np.clip(distance_matrix, 0, None)  # Clip to ensure all values >= 0
             
-            # DBSCAN with a métrique de distance pré-calculée
-            model = DBSCAN(eps=1-threshold, min_samples=1, metric='precomputed')
-            labels = model.fit_predict(distance_matrix)
-
-            # Organization of clusters
             clusters = {}
-            for path, label in zip(paths, labels):
-                cluster_name = f"cluster_{label}"
-                if cluster_name not in clusters:
-                    clusters[cluster_name] = []
-                clusters[cluster_name].append(path)
-
+            current_cluster = []
+            already_clustered = set()
+            
+            print(f"Clustering du jour {day} avec {N} images...")
+            
+            for i in range(N):
+                current_img = paths[i]
+                if current_img in already_clustered:
+                    continue
+                    
+                # Calculer les similarités avec les n voisins suivants
+                end_idx = min(i + n_neighbors + 1, N)
+                similar_images = []
+                
+                # Ajouter l'image courante au cluster si pas encore clustérisée
+                if current_img not in already_clustered:
+                    current_cluster.append(current_img)
+                    already_clustered.add(current_img)
+                    
+                # Chercher des images similaires parmi les voisins
+                for j in range(i + 1, end_idx):
+                    sim = np.dot(embeddings[i], embeddings[j])
+                    if sim > threshold:
+                        neighbor_img = paths[j]
+                        if neighbor_img not in already_clustered:
+                            current_cluster.append(neighbor_img)
+                            already_clustered.add(neighbor_img)
+                            similar_images.append(neighbor_img)
+                
+                # Si aucune image similaire trouvée et qu'on a un cluster en cours, finaliser le cluster
+                if not similar_images and len(current_cluster) > 0:
+                    cluster_name = f"cluster_{global_cluster_id}"  # Utiliser l'ID global
+                    clusters[cluster_name] = current_cluster.copy()
+                    current_cluster = []
+                    global_cluster_id += 1  # Incrémenter l'ID global
+            
+            # Traitement du dernier cluster s'il n'est pas vide
+            if current_cluster:
+                cluster_name = f"cluster_{global_cluster_id}"  # Utiliser l'ID global
+                clusters[cluster_name] = current_cluster
+                global_cluster_id += 1  # Incrémenter l'ID global
+            
+            # Collecter les images non clustérisées dans "others"
+            other_cluster = []
+            for path in paths:
+                found = False
+                for cluster_name, cluster_images in clusters.items():
+                    if path in cluster_images:
+                        found = True
+                        break
+                if not found:
+                    other_cluster.append(path)
+            
+            if other_cluster:
+                clusters["others"] = other_cluster
+                
             clusters_by_day[day] = clusters
-
+        
         return clusters_by_day
-    
-    def perform_day_based_clustering(self, threshold=0.6):
-        print("Début du clustering par jour...")
+
+    def perform_neighbors_clustering(self, threshold=0.6, n_neighbors=3):
+        print("Début du clustering par voisins proches...")
         days_dict = self.day_sorting()
         embeddings_dict = self.days_embedding(days_dict)
-        similarities_matrices = self.matrice_similarities(embeddings_dict)
-        clusters = self.cluster_from_similarity_matrices(similarities_matrices, threshold)
+        clusters = self.neighbors_similarity_clustering(embeddings_dict, threshold, n_neighbors)
         
         # Mise à jour du DataFrame avec les informations de cluster
         cluster_mapping = {}
         for day, day_clusters in clusters.items():
             for cluster_name, image_paths in day_clusters.items():
                 for path in image_paths:
-                    cluster_mapping[path] = cluster_name
+                    cluster_mapping[path] = f"{day}_{cluster_name}"
         
         self.df['cluster'] = self.df['path'].map(cluster_mapping)
         
         return self.df, clusters
 
 class LLMCall:
-    def __init__(self, directory=DIRECTORY, allowed_extensions=None, model=MODEL):
+    def __init__(self, directory=DIRECTORY, allowed_extensions=None):
         if allowed_extensions is None:
             allowed_extensions = {".jpg", ".jpeg", ".png", ".gif"}
         self.allowed_extensions = allowed_extensions
         self.directory = directory
-        self.model = model
-        self.llm = ChatOllama(model=model)
-
-        self.prompt_chain = RunnableLambda(self.prompt_func)
 
         self.image_paths = self.get_image_paths(directory)
 
@@ -265,113 +241,7 @@ class LLMCall:
         image_paths = [os.path.join(directory, filename) for filename in os.listdir(directory) if os.path.splitext(filename)[1].lower() in self.allowed_extensions]
         return image_paths
 
-    def prompt_func(self, data):
-        type_ = data["type"]
-        text = data["text"]
-        content_parts = []
-
-        if type_ == "keywords":
-            image = data["image"]
-            image_part = {
-                "type": "image_url",
-                "image_url": f"data:image/jpeg;base64,{image}",
-            }
-            content_parts.append(image_part)
-
-        text_part = {"type": "text", "text": text}
-        content_parts.append(text_part)
-        human_message = HumanMessage(content=content_parts)
-
-        return [human_message]
-
-    def call_func(self, chain, prompt):
-        try:
-            response = chain.invoke(prompt)
-
-            if isinstance(response, AIMessage):
-                response_text = response.content
-            else:
-                response_text = str(response)
-            # print(f"Reponse du llm : {response_text}")
-
-            return extract_json(response_text)
-
-        except Exception as e:
-            print(f"Erreur de parsing JSON : {e}. Nouvelle tentative...")
-            return -1
-
-    def checking_all_keywords(self):
-        path_images_empty = []
-        none_possibilities = [None, "", [], "None", np.nan]
-        for row in self.df.itertuples():
-            keywords = getattr(row, "keywords", None)
-            path = getattr(row, "path", None)
-
-            if isinstance(keywords, float) and pd.isna(keywords):
-                path_images_empty.append(path)
-
-            elif keywords in none_possibilities:
-                path_images_empty.append(path)
-
-        return path_images_empty
-
-    def keywords_call(self, image_paths, keywords_chain):
-        for i in range(0, len(image_paths)):
-            print(f"Image {i} : {image_paths[i]}")
-            image_b64 = encode_image(image_paths[i])
-            image_name = os.path.basename(image_paths[i])
-            # print("Image name donnée au model : ", image_name)
-
-            wrong_json = True
-            max_iter = 100
-            while wrong_json and max_iter > 0:
-                prompt = {
-                    "type": "keywords",
-                    "text": f"""Décris-moi l'image avec 5 mots-clés. Les mots-clés doivent en priorité inclure des actions, des objets et un lieu si identifiables. Les mots-clés doivent être en français et peuvent être des mots composés.
-                    Retourne le résultat au format JSON suivant: {{ "{image_name}" : ["mot-clé1", "mot-clé2", "mot-clé3", "mot-clé4", "mot-clé5"] }}""",
-                    "image": image_b64
-                }
-
-                keywords_output = self.call_func(keywords_chain, prompt)
-                print(f"Keywords : {keywords_output}\n")
-
-                if keywords_output is None:
-                    max_iter -= 1
-                    print(f"On re-essaie avec au maximum : {max_iter}\n")
-                else:
-
-                    self.dataframe_manager.add_keywords_to_df(keywords_output)
-                    self.df = self.dataframe_manager.get_dataframe()
-                    wrong_json = False
-
-        return self.df
-
-    def pipeline_keywords(self):
-        new_image_paths = self.image_paths
-
-        keyword_chain = self.prompt_chain | self.llm
-
-        all_keywords = False
-        only_once = False
-
-        while not all_keywords:
-            self.df = self.keywords_call(new_image_paths, keyword_chain)
-
-            if only_once:
-                new_row = pd.DataFrame(
-                    [{"image_name": "IMG_20241228_132157.jpg", "path": "photos_victor/IMG_20241228_132157.jpg"}])
-                self.df = pd.concat([self.df, new_row], ignore_index=True)
-                only_once = False
-
-            new_image_paths = self.checking_all_keywords()
-            print(f"Images à traiter après le passage : {new_image_paths}")
-
-            if not new_image_paths:
-                all_keywords = True
-
-        return self.df
-
-    def pipeline_categories_embedding_with_clusters(self, threshold=0.2, batch_size=10, predefined_categories=None):
+    def pipeline_categories_embedding_with_clusters(self, threshold=0.1, batch_size=10, predefined_categories=None):
         """
         Attribue des catégories en utilisant les clusters comme unité de base.
         Toutes les images d'un même cluster reçoivent la même catégorie.
@@ -380,7 +250,10 @@ class LLMCall:
             predefined_categories = ["Ville", "Plage", "Randonnée", "Sport", "Musée", "Restaurant", "Voyages", "Nature", "Autres"]
         
         clustering_manager = ClusteringManager(self.df)
-        clustered_df, clusters_by_day = clustering_manager.perform_day_based_clustering(threshold=0.6)
+        
+        # Choix de la méthode de clustering
+        clustered_df, clusters_by_day = clustering_manager.perform_neighbors_clustering(threshold=0.6, n_neighbors=3)
+        
         self.df = clustered_df
         print(f"Clustering terminé: {len(clusters_by_day)} jours traités")
         
@@ -476,9 +349,24 @@ class LLMCall:
                     best_cat_idx = np.argmax(normalized_similarities)
                     best_cat_score = normalized_similarities[best_cat_idx]
                     best_cat = predefined_categories[best_cat_idx]
+
+                    for cat, sim in zip(predefined_categories, normalized_similarities):
+                        print(f"{cat}: {sim:.3f}")
+                    print("\n")
                     
                     # Assignation de la catégorie à toutes les images du cluster
-                    category = "Autres" if best_cat_score < threshold else best_cat
+                    # Vérifier si "Autres" est suffisamment proche du meilleur score
+                    autres_index = predefined_categories.index("Autres")
+                    autres_score = normalized_similarities[autres_index]
+                    diff_with_best = best_cat_score - autres_score
+                    
+                    # Attribuer "Autres" si:
+                    # - soit c'est déjà la meilleure catégorie (best_cat == "Autres")
+                    # - soit son score est suffisamment proche du meilleur score (diff < 0.2) et qu'il n'est pas déjà le meilleur
+                    category = best_cat
+                    if best_cat == "Autres" or (diff_with_best < threshold and best_cat != "Autres"):
+                        category = "Autres"
+                    
                     print(f"Cluster {cluster_name}: catégorie attribuée = {category} (score: {best_cat_score:.3f})")
                     
                     # Mise à jour du DataFrame
@@ -487,22 +375,17 @@ class LLMCall:
         return self.df
 
     def pipeline(self, starting_time):
-        print("RECHERCHE DE MOTS CLES...")
-        self.df = self.pipeline_keywords()
-        keywords_time = time.time() - starting_time
-        print(tabulate(self.df, headers="keys", tablefmt="psql"))
-        print(f"Temps de recherche des mots clés : {keywords_time:.2f} secondes")
-
         print("RECHERCHE DES CATEGORIES AVEC CLUSTERING...")
         self.df = self.pipeline_categories_embedding_with_clusters()
         categories_time = time.time() - starting_time
         print(tabulate(self.df, headers="keys", tablefmt="psql"))
         print(f"Temps de recherche des catégories : {categories_time:.2f} secondes")
         
+        self.dataframe_manager.df = self.df 
         self.dataframe_manager.save_to_csv(self.directory + ".csv")
 
 if __name__ == "__main__":
-    call = LLMCall(directory=DIRECTORY, model=MODEL)
+    call = LLMCall(directory=DIRECTORY)
     starting_time = time.time()
 
     call.pipeline(starting_time)
