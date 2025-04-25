@@ -265,7 +265,7 @@ class LLMCall:
         fr_to_en = {
             "Ville": "City urban buildings",
             "Plage": "Beach sea ocean sand",
-            "Randonnée": "Hiking trail mountain path",
+            "Randonnée": "Hiking trail forest path",
             "Sport": "Sports activity athletic",
             "Musée": "Museum exhibition art gallery",
             "Restaurant": "Restaurant dining food",
