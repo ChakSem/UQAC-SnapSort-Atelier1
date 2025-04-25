@@ -12,7 +12,7 @@ import torch
 from transformers import CLIPProcessor, CLIPModel
 from sklearn.metrics.pairwise import cosine_similarity
 
-DIRECTORY = "test_data"
+DIRECTORY = "photos_victor"
 DESTINATION_DIRECORY = "results"
 
 def encode_image(image_path, max_size=(512, 512), quality=80):
@@ -246,7 +246,7 @@ class LLMCall:
         Toutes les images d'un même cluster reçoivent la même catégorie.
         """
         if predefined_categories is None:
-            predefined_categories = ["Ville", "Plage", "Randonnée", "Sport", "Musée", "Restaurant", "Voyages", "Nature", "Autres"]
+            predefined_categories = ["Ville", "Plage", "Randonnée", "Sport", "Musée", "Nourriture", "Voyages", "Nature", "Neige", "Bâtiment", "Autres", "Famille et amis", "Animaux"]
         
         clustering_manager = ClusteringManager(self.df)
         
@@ -268,7 +268,7 @@ class LLMCall:
             "Randonnée": "Hiking trail mountain path",
             "Sport": "Sports activity athletic",
             "Musée": "Museum exhibition art gallery",
-            "Restaurant": "Restaurant dining food", 
+            "Restaurant": "Restaurant dining food",
             "Voyages": "Travel vacation snow",
             "Nature": "Nature wildlife environment flora fauna",
             "Autres": "Miscellaneous other"
@@ -352,6 +352,9 @@ class LLMCall:
                     for cat, sim in zip(predefined_categories, normalized_similarities):
                         print(f"{cat}: {sim:.3f}")
                     print("\n")
+
+                    if len(image_paths) == 1:
+                        best_cat = "Autres"
                     
                     # Assignation de la catégorie à toutes les images du cluster
                     # Vérifier si "Autres" est suffisamment proche du meilleur score
@@ -362,7 +365,8 @@ class LLMCall:
                     # Attribuer "Autres" si:
                     # - soit c'est déjà la meilleure catégorie (best_cat == "Autres")
                     # - soit son score est suffisamment proche du meilleur score (diff < 0.2) et qu'il n'est pas déjà le meilleur
-                    category = best_cat
+                    formatted_date = day.replace(":", "_")
+                    category = formatted_date + "_" + best_cat
                     if best_cat == "Autres" or (diff_with_best < threshold and best_cat != "Autres"):
                         category = "Autres"
                     
