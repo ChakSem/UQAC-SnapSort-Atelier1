@@ -11,7 +11,6 @@ from Categories_TreeStructure import create_category_folders_from_csv
 import torch
 from transformers import CLIPProcessor, CLIPModel
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.cluster import DBSCAN
 
 DIRECTORY = "test_data"
 DESTINATION_DIRECORY = "results"
@@ -219,7 +218,7 @@ class ClusteringManager:
         for day, day_clusters in clusters.items():
             for cluster_name, image_paths in day_clusters.items():
                 for path in image_paths:
-                    cluster_mapping[path] = f"{day}_{cluster_name}"
+                    cluster_mapping[path] = cluster_name
         
         self.df['cluster'] = self.df['path'].map(cluster_mapping)
         
