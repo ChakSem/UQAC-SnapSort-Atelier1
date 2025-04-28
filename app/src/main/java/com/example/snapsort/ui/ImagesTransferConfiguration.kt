@@ -4,6 +4,8 @@
     import android.content.ContentUris
     import android.content.Context
     import android.content.pm.PackageManager
+    import android.net.ConnectivityManager
+    import android.net.NetworkCapabilities
     import android.net.Uri
     import android.net.wifi.WifiManager
     import android.os.Build
@@ -42,6 +44,7 @@
     import com.example.snapsort.R
     import kotlinx.coroutines.Dispatchers
     import kotlinx.coroutines.Job
+    import kotlinx.coroutines.delay
     import kotlinx.coroutines.launch
     import kotlinx.coroutines.withContext
     import java.io.File
@@ -63,7 +66,7 @@
         val dateTaken: Long,
         val path: String
     )
-    
+
     @RequiresApi(Build.VERSION_CODES.R)
     @Composable
     fun ImagesTransferConfiguration(
@@ -72,7 +75,7 @@
         val context = LocalContext.current
         val coroutineScope = rememberCoroutineScope()
         val tag = "ImagesTransfer"
-    
+
         // État des permissions
         var hasPermission by remember {
             mutableStateOf(
@@ -87,37 +90,37 @@
                                 ) == PackageManager.PERMISSION_GRANTED)
             )
         }
-    
+
         // Images trouvées et sélectionnées
         var allImages by remember { mutableStateOf<List<ImageInfo>>(emptyList()) }
         var filteredImages by remember { mutableStateOf<List<ImageInfo>>(emptyList()) }
         var errorMessage by remember { mutableStateOf<String?>(null) }
-    
+
         // État pour le Range Slider de dates
         var dateRange by remember { mutableStateOf(0f..1f) }
         var minDate by remember { mutableStateOf(0L) }
         var maxDate by remember { mutableStateOf(System.currentTimeMillis()) }
-    
+
         // Formatage pour afficher les dates
         val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-    
+
         // Dossiers disponibles
         var availableFolders by remember { mutableStateOf<List<String>>(emptyList()) }
         var selectedFolder by remember { mutableStateOf<String>("ALL") }
         var dropdownExpanded by remember { mutableStateOf(false) }
-    
+
         // État du transfert
         var isTransferring by remember { mutableStateOf(false) }
         var transferProgress by remember { mutableStateOf(0f) }
         var transferredCount by remember { mutableStateOf(0) }
         var totalToTransfer by remember { mutableStateOf(0) }
-    
+
         // État pour afficher le scanning des images
         var isLoadingImages by remember { mutableStateOf(false) }
-    
+
         // Job pour pouvoir annuler les coroutines précédentes
         var currentLoadingJob by remember { mutableStateOf<Job?>(null) }
-    
+
         // Fonction pour filtrer les images en fonction de la plage de dates
         fun filterImagesByDateRange(
             images: List<ImageInfo>,
@@ -127,14 +130,8 @@
             max: Long
         ) {
             if (images.isNotEmpty() && min < max) {
-                // Calculer les dates réelles à partir des valeurs normalisées du slider
-                // Inverser le calcul pour que 0 corresponde à la date la plus récente (max)
-                // et 1 corresponde à la date la plus ancienne (min)
                 val startDate = max - ((max - min) * start).toLong()
                 val endDate = max - ((max - min) * end).toLong()
-
-                // Filtrer les images dont la date est dans la plage
-                // Notez que comme nous avons inversé l'échelle, nous filtrons différemment
                 filteredImages = images.filter { it.dateTaken in endDate..startDate }
                 Log.d(
                     tag,
@@ -146,17 +143,17 @@
                 filteredImages = images
             }
         }
-    
+
         // Fonction pour mettre à jour le range des dates en fonction des images chargées
         fun updateDateRange(images: List<ImageInfo>) {
             if (images.isNotEmpty()) {
                 // Récupérer les dates min et max des images
                 minDate = images.minByOrNull { it.dateTaken }?.dateTaken ?: System.currentTimeMillis()
                 maxDate = images.maxByOrNull { it.dateTaken }?.dateTaken ?: System.currentTimeMillis()
-    
+
                 // Réinitialiser le slider
                 dateRange = 0f..1f
-    
+
                 // Appliquer le filtre initial
                 filterImagesByDateRange(images, 0f, 1f, minDate, maxDate)
             } else {
@@ -164,35 +161,35 @@
                 filteredImages = emptyList()
             }
         }
-    
+
         // Fonction pour charger les images depuis un dossier spécifique
         fun loadImagesFromFolder(folder: String) {
             // Annuler tout job précédent
             currentLoadingJob?.cancel()
-    
+
             // Réinitialiser les états
             allImages = emptyList()
             filteredImages = emptyList()
             errorMessage = null
             isLoadingImages = true
-    
+
             // Créer un nouveau job pour le chargement des images
             currentLoadingJob = coroutineScope.launch {
                 try {
                     Log.d(tag, "Début du chargement des images pour le dossier: $folder")
-    
+
                     val loadedImages = withContext(Dispatchers.IO) {
                         getImagesFromFolder(context, folder)
                     }
-    
+
                     // Vérifier si le job a été annulé pendant le chargement
                     if (!isActive) {
                         Log.d(tag, "Chargement des images annulé")
                         return@launch
                     }
-    
+
                     Log.d(tag, "Images chargées: ${loadedImages.size}")
-    
+
                     allImages = loadedImages
                     updateDateRange(loadedImages)
                     isLoadingImages = false
@@ -205,7 +202,7 @@
                 }
             }
         }
-    
+
         val permissionLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission()
         ) { isGranted ->
@@ -219,7 +216,7 @@
                 }
             }
         }
-    
+
         // Charger les dossiers disponibles au démarrage si l'autorisation est déjà accordée
         LaunchedEffect(hasPermission) {
             if (hasPermission) {
@@ -244,7 +241,7 @@
                 }
             }
         }
-    
+
         // Nettoyer les ressources quand le composable est détruit
         DisposableEffect(Unit) {
             onDispose {
@@ -252,7 +249,7 @@
                 currentLoadingJob?.cancel()
             }
         }
-    
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -266,13 +263,13 @@
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
-    
+
             Text(
                 text = "Sélection des photos à transférer",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
-    
+
             // Menu déroulant pour les dossiers
             Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(
@@ -285,7 +282,7 @@
                     Spacer(Modifier.weight(1f))
                     Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown")
                 }
-    
+
                 DropdownMenu(
                     expanded = dropdownExpanded,
                     onDismissRequest = { dropdownExpanded = false },
@@ -307,7 +304,7 @@
                     }
                 }
             }
-    
+
             // Afficher un indicateur de chargement pendant le scan des images
             if (isLoadingImages) {
                 Column(
@@ -354,7 +351,7 @@
                                  text = "Fin: ${dateFormat.format(Date(endDate))}",
                                  style = MaterialTheme.typography.bodyMedium
                              )
-                             
+
                             // Date de début (plus récente)
                             val startDate = maxDate - ((maxDate - minDate) * dateRange.start).toLong()
                             Text(
@@ -362,7 +359,7 @@
                                 style = MaterialTheme.typography.bodyMedium
                             )
 
-                           
+
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -392,7 +389,7 @@
                     }
                 }
             }
-    
+
             // Nombre d'images chargées et sélectionnées
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -412,7 +409,7 @@
                     )
                 }
             }
-    
+
             // Message d'erreur si nécessaire
             if (errorMessage != null) {
                 Card(
@@ -439,31 +436,29 @@
                     }
                 }
             }
-    
+
             // Aperçu des images (première et dernière de la sélection)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 if (filteredImages.isNotEmpty()) {
-                    // Première image (la plus récente)
-                    ImagePreview(
-                        uri = filteredImages.first().uri,
-                        date = filteredImages.first().dateTaken,
-                        label = "Plus récente"
-                    )
-    
                     // Dernière image (la plus ancienne)
+                    ImagePreview(
+                        uri = filteredImages.last().uri,
+                        label = "Plus ancienne"
+                    )
+
+                    // Première image (la plus récente)
                     if (filteredImages.size > 1) {
                         ImagePreview(
-                            uri = filteredImages.last().uri,
-                            date = filteredImages.last().dateTaken,
-                            label = "Plus ancienne"
+                            uri = filteredImages.first().uri,
+                            label = "Plus récente"
                         )
                     }
                 }
             }
-    
+
             // Indicateur de progression si transfert en cours
             if (isTransferring) {
                 Column(
@@ -481,44 +476,71 @@
                     )
                 }
             }
-    
-            // Bouton de transfert
+            // État pour l'alerte de connexion
+            var showHotspotAlert by remember { mutableStateOf(false) }
+
+            // Alerte de connexion au hotspot
+            if (showHotspotAlert) {
+                AlertDialog(
+                    onDismissRequest = { showHotspotAlert = false },
+                    title = { Text("Connexion requise") },
+                    text = { Text("Vous n'êtes pas connecté à un hotspot. Veuillez activer le hotspot ou consulter le tutoriel pour savoir comment procéder.") },
+                    confirmButton = {
+                        TextButton(onClick = { showHotspotAlert = false }) {
+                            Text("OK")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = {
+                            showHotspotAlert = false
+                            navController.navigate("TutorialSwipeableScreen")
+                        }) {
+                            Text("Voir le tutoriel")
+                        }
+                    }
+                )
+            }
+
             Button(
                 onClick = {
                     if (filteredImages.isNotEmpty()) {
-                        coroutineScope.launch {
-                            isTransferring = true
-                            totalToTransfer = filteredImages.size
-                            transferredCount = 0
-    
-                            try {
-                                val success = transferImages(
-                                    context,
-                                    filteredImages,
-                                    onProgressUpdate = { progress, count ->
-                                        transferProgress = progress
-                                        transferredCount = count
+                        if (!isConnectedToHotspot(context)) {
+                            showHotspotAlert = true
+                        } else {
+                            coroutineScope.launch {
+                                isTransferring = true
+                                totalToTransfer = filteredImages.size
+                                transferredCount = 0
+
+                                try {
+                                    val success = transferImages(
+                                        context,
+                                        filteredImages,
+                                        onProgressUpdate = { progress, count ->
+                                            transferProgress = progress
+                                            transferredCount = count
+                                        }
+                                    )
+
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(
+                                            context,
+                                            if (success) "Transfert réussi!" else "Échec du transfert",
+                                            Toast.LENGTH_LONG
+                                        ).show()
                                     }
-                                )
-    
-                                withContext(Dispatchers.Main) {
-                                    Toast.makeText(
-                                        context,
-                                        if (success) "Transfert réussi!" else "Échec du transfert",
-                                        Toast.LENGTH_LONG
-                                    ).show()
+                                } catch (e: Exception) {
+                                    Log.e(tag, "Erreur lors du transfert", e)
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(
+                                            context,
+                                            "Erreur: ${e.message}",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                } finally {
+                                    isTransferring = false
                                 }
-                            } catch (e: Exception) {
-                                Log.e(tag, "Erreur lors du transfert", e)
-                                withContext(Dispatchers.Main) {
-                                    Toast.makeText(
-                                        context,
-                                        "Erreur: ${e.message}",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            } finally {
-                                isTransferring = false
                             }
                         }
                     } else {
@@ -541,29 +563,17 @@
                 }
                 Text(if (isTransferring) "Transfert en cours..." else "Transférer ${filteredImages.size} photo(s)")
             }
-    
-            TextButton(
-                onClick = {
-                    navController.navigate("TutorialSwipeableScreen") {
-                        popUpTo("TutorialSwipeableScreen") { inclusive = true }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Text("Comment ça marche ?", color = MaterialTheme.colorScheme.primary)
-            }
         }
     }
-    
+
     // Fonction optimisée pour récupérer les images d'un dossier spécifique
     private fun getImagesFromFolder(context: Context, folderPath: String): List<ImageInfo> {
         val imageInfoList = mutableListOf<ImageInfo>()
         val contentResolver = context.contentResolver
         val tag = "ImagesTransfer"
-    
+
         Log.d(tag, "Recherche d'images dans le dossier: $folderPath")
-    
+
         try {
             // Projection pour récupérer les données nécessaires
             val projection = arrayOf(
@@ -571,7 +581,7 @@
                 MediaStore.Images.Media.DATE_TAKEN,
                 MediaStore.Images.Media.DATA
             )
-    
+
             // Construire la requête en fonction du dossier sélectionné
             val selection = if (folderPath == "ALL") {
                 null
@@ -579,7 +589,7 @@
                 // Utiliser LIKE pour le chemin du dossier
                 "${MediaStore.Images.Media.DATA} LIKE ?"
             }
-    
+
             val selectionArgs = if (folderPath == "ALL") {
                 null
             } else {
@@ -595,10 +605,10 @@
                 }
                 arrayOf(searchPath)
             }
-    
+
             // Trier par date de prise de vue (du plus récent au plus ancien)
             val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
-    
+
             val cursor = contentResolver.query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                 projection,
@@ -606,14 +616,14 @@
                 selectionArgs,
                 sortOrder
             )
-    
+
             cursor?.use { c ->
                 Log.d(tag, "Nombre d'images trouvées: ${c.count}")
-    
+
                 val idColumn = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
                 val dateColumn = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
                 val dataColumn = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-    
+
                 while (c.moveToNext()) {
                     val id = c.getLong(idColumn)
                     val dateTaken = if (c.isNull(dateColumn)) {
@@ -622,13 +632,13 @@
                         c.getLong(dateColumn)
                     }
                     val path = c.getString(dataColumn)
-    
+
                     // Création de l'URI du contenu
                     val contentUri = ContentUris.withAppendedId(
                         MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                         id
                     )
-    
+
                     // Vérifier si l'URI est valide
                     try {
                         contentResolver.openInputStream(contentUri)?.close()
@@ -639,7 +649,7 @@
                     }
                 }
             }
-    
+
             // Si la liste est vide, essayer la méthode de secours
             if (imageInfoList.isEmpty() && folderPath != "ALL") {
                 Log.d(tag, "Tentative de récupération directe des fichiers dans $folderPath")
@@ -655,7 +665,7 @@
                         File(folderPath)
                     }
                 }
-    
+
                 // Vérifier si le dossier existe
                 if (dirPath.exists() && dirPath.isDirectory) {
                     val files = dirPath.listFiles { file ->
@@ -663,11 +673,11 @@
                                 file.name.endsWith(".jpeg", ignoreCase = true) ||
                                 file.name.endsWith(".png", ignoreCase = true))
                     }
-    
+
                     files?.forEach { file ->
                         val uri = Uri.fromFile(file)
                         val dateTaken = file.lastModified()
-    
+
                         try {
                             imageInfoList.add(ImageInfo(uri, dateTaken, file.absolutePath))
                             Log.d(tag, "Image trouvée directement: ${file.absolutePath}")
@@ -677,30 +687,30 @@
                     }
                 }
             }
-    
+
         } catch (e: Exception) {
             Log.e(tag, "Erreur lors de la récupération des images", e)
         }
-    
+
         Log.d(tag, "Total d'images trouvées: ${imageInfoList.size}")
         return imageInfoList
     }
 
-    
+
     // Fonction pour obtenir les dossiers disponibles - Simplifiée pour se concentrer sur DCIM
     private fun getDCIMFolders(context: Context): List<String> {
         val folders = mutableListOf<String>()
         val tag = "ImagesTransfer"
-    
+
         // Ajouter une option "Toutes les images"
         folders.add("ALL")
-    
+
         // Ajouter directement DCIM et ses sous-dossiers
         try {
             val dcimDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
             if (dcimDir.exists() && dcimDir.isDirectory) {
                 if (!folders.contains("DCIM")) folders.add("DCIM")
-    
+
                 dcimDir.listFiles()?.forEach { file ->
                     if (file.isDirectory && !folders.contains("DCIM/${file.name}")) {
                         folders.add("DCIM/${file.name}")
@@ -710,21 +720,21 @@
         } catch (e: Exception) {
             Log.e(tag, "Erreur lors de la récupération des dossiers DCIM", e)
         }
-    
+
         return folders.distinct()
     }
-    
-    
-    
-    
+
+
+
+
     @Composable
-    fun ImagePreview(uri: Uri, date: Long, label: String) {
+    fun ImagePreview(uri: Uri, label: String) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(label, style = MaterialTheme.typography.labelMedium)
-    
+
             Image(
                 painter = rememberAsyncImagePainter(uri),
                 contentDescription = "Image Preview",
@@ -732,11 +742,6 @@
                     .size(120.dp)
                     .clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop
-            )
-    
-            Text(
-                getFormattedDate(date),
-                style = MaterialTheme.typography.labelSmall
             )
         }
     }
@@ -746,75 +751,121 @@
         images: List<ImageInfo>,
         onProgressUpdate: (Float, Int) -> Unit
     ): Boolean {
-        return try {
+        // Journalisation du début du transfert
+        Log.d("ImagesTransfer", "Début du transfert de ${images.size} images")
+
+        try {
             // Obtenir l'adresse IP du réseau WiFi
             val wifiIp = getWifiIpAddress(context) ?: throw Exception("Impossible d'obtenir l'adresse IP")
             Log.d("ImagesTransfer", "Adresse IP locale: $wifiIp")
-    
+
             // Extraire le préfixe du réseau
             val networkPrefix = wifiIp.substringBeforeLast(".")
-    
+
             // Port du serveur
             val serverPort = 8080
-    
+
             // Chercher le serveur sur le réseau
             val serverIp = findServer(networkPrefix, serverPort) ?: throw Exception("Serveur non trouvé sur le réseau")
             Log.d("ImagesTransfer", "Serveur trouvé à l'adresse: $serverIp")
-    
-            withContext(Dispatchers.IO) {
-                // Créer une connexion HTTP
-                val url = URL("http://$serverIp:$serverPort")
-                val connection = url.openConnection() as HttpURLConnection
-                connection.requestMethod = "POST"
-                connection.doOutput = true
-                connection.connectTimeout = 10000 // 10 seconds
-                connection.readTimeout = 60000   // 60 seconds
-                connection.setRequestProperty("Content-Type", "application/octet-stream")
-                connection.connect()
-    
-                val outputStream = connection.outputStream
-                val writer = BufferedWriter(OutputStreamWriter(outputStream))
-    
+
+            // Configuration pour le transfert par lots
+            val batchSize = 50 // Taille de chaque lot
+            val batches = images.chunked(batchSize)
+            var totalTransferred = 0
+            var overallSuccess = true
+
+            // Traiter chaque lot séparément
+            for ((batchIndex, batch) in batches.withIndex()) {
                 try {
-                    // Envoyer le nombre total d'images comme première ligne
-                    writer.write(images.size.toString())
-                    writer.write("\n")
-                    writer.flush()
-    
-                    // Transférer chaque image
-                    images.forEachIndexed { index, imageInfo ->
+                    Log.d("ImagesTransfer", "Traitement du lot ${batchIndex + 1}/${batches.size} (${batch.size} images)")
+
+                    withContext(Dispatchers.IO) {
+                        // Créer une nouvelle connexion pour chaque lot
+                        val url = URL("http://$serverIp:$serverPort")
+                        val connection = url.openConnection() as HttpURLConnection
+                        connection.requestMethod = "POST"
+                        connection.doOutput = true
+                        connection.connectTimeout = 30000 // 30 secondes
+                        connection.readTimeout = 180000   // 3 minutes
+                        connection.setRequestProperty("Content-Type", "application/octet-stream")
+                        connection.connect()
+
+                        var outputStream: OutputStream? = null
+                        var writer: BufferedWriter? = null
+
                         try {
-                            transferSingleImage(context, imageInfo, outputStream, writer)
-                            
-                            // Mettre à jour la progression
-                            val progress = (index + 1).toFloat() / images.size
-                            withContext(Dispatchers.Main) {
-                                onProgressUpdate(progress, index + 1)
+                            outputStream = connection.outputStream
+                            writer = BufferedWriter(OutputStreamWriter(outputStream))
+
+                            // Envoyer le nombre d'images dans ce lot
+                            writer.write(batch.size.toString())
+                            writer.write("\n")
+                            writer.flush()
+
+                            // Transférer chaque image du lot
+                            batch.forEachIndexed { index, imageInfo ->
+                                try {
+                                    transferSingleImage(context, imageInfo, outputStream, writer)
+
+                                    // Mettre à jour la progression globale
+                                    totalTransferred++
+                                    val progress = totalTransferred.toFloat() / images.size
+                                    withContext(Dispatchers.Main) {
+                                        onProgressUpdate(progress, totalTransferred)
+                                    }
+
+                                    // Petit délai entre les images pour éviter la saturation
+                                    if (index < batch.size - 1) {
+                                        delay(50) // 50ms entre chaque image
+                                    }
+
+                                } catch (e: Exception) {
+                                    Log.e("ImagesTransfer", "Erreur lors du transfert de l'image ${totalTransferred + 1}", e)
+                                    // Continuer avec l'image suivante plutôt que d'arrêter tout le processus
+                                }
                             }
-                        } catch (e: Exception) {
-                            Log.e("ImagesTransfer", "Erreur lors du transfert de l'image ${index + 1}", e)
-                            // Continuer avec l'image suivante plutôt que d'arrêter tout le processus
+
+                            // Lire la réponse du serveur
+                            val responseCode = connection.responseCode
+                            val responseMessage = connection.responseMessage
+                            Log.d("ImagesTransfer", "Réponse du serveur pour le lot ${batchIndex + 1}: $responseCode $responseMessage")
+
+                            if (responseCode != HttpURLConnection.HTTP_OK) {
+                                Log.w("ImagesTransfer", "Le serveur a répondu avec un code d'erreur: $responseCode")
+                                overallSuccess = false
+                            }
+
+                        } finally {
+                            // Fermer les ressources dans l'ordre inverse de leur création
+                            try {
+                                writer?.close()
+                                outputStream?.close()
+                                connection.disconnect()
+                            } catch (e: Exception) {
+                                Log.e("ImagesTransfer", "Erreur lors de la fermeture des ressources", e)
+                            }
                         }
                     }
-    
-                    // Lire la réponse du serveur
-                    val responseCode = connection.responseCode
-                    val responseMessage = connection.responseMessage
-                    Log.d("ImagesTransfer", "Réponse du serveur: $responseCode $responseMessage")
-    
-                    responseCode == HttpURLConnection.HTTP_OK
-                } finally {
-                    try {
-                        outputStream.close()
-                        writer.close()
-                        connection.disconnect()
-                    } catch (e: Exception) {
-                        Log.e("ImagesTransfer", "Erreur lors de la fermeture des ressources", e)
+
+                    // Pause entre les lots pour donner au serveur le temps de traiter
+                    if (batchIndex < batches.size - 1) {
+                        Log.d("ImagesTransfer", "Pause entre les lots")
+                        delay(1000) // 1 seconde entre les lots
                     }
+
+                } catch (e: Exception) {
+                    Log.e("ImagesTransfer", "Erreur lors du traitement du lot ${batchIndex + 1}", e)
+                    // Ne pas interrompre l'ensemble du transfert si un lot échoue
+                    overallSuccess = false
                 }
             }
+
+            Log.d("ImagesTransfer", "Transfert terminé. ${totalTransferred}/${images.size} images transférées avec succès")
+            return overallSuccess && totalTransferred == images.size
+
         } catch (e: Exception) {
-            Log.e("ImagesTransfer", "Erreur lors du transfert", e)
+            Log.e("ImagesTransfer", "Erreur globale lors du transfert", e)
             throw e
         }
     }
@@ -826,37 +877,42 @@
     ) {
         context.contentResolver.openInputStream(imageInfo.uri)?.use { inputStream ->
             try {
-                // Obtenir un nom de fichier significatif
+                // Obtenir un nom de fichier significatif et nettoyer les caractères spéciaux
                 val file = File(imageInfo.path)
-                val fileName = file.name
-    
-                // Envoyer le nom du fichier sur une ligne
+                val originalFileName = file.name
+
+                // Normaliser le nom de fichier (remplacer les caractères spéciaux)
+                val fileName = originalFileName
+                    .replace("[^a-zA-Z0-9._-]".toRegex(), "_") // Remplace tous les caractères spéciaux par _
+                    .replace("__+".toRegex(), "_") // Évite les séquences de _
+
+                // Envoyer le nom du fichier normalisé sur une ligne
                 writer.write(fileName)
                 writer.write("\n")
-    
+
                 // Formatter la date au format attendu par le serveur (YYYYMMDD_HHmmss)
                 val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
                 val dateString = dateFormat.format(Date(imageInfo.dateTaken))
                 writer.write(dateString)
                 writer.write("\n")
-    
+
                 // Récupérer et envoyer la taille du fichier
                 val fileSize = inputStream.available()
                 writer.write(fileSize.toString())
                 writer.write("\n")
                 writer.flush()
-    
+
                 // Transférer le contenu du fichier
                 val buffer = ByteArray(8 * 1024)
                 var bytesRead: Int
                 var totalRead = 0
-    
+
                 while (inputStream.read(buffer).also { bytesRead = it } != -1) {
                     outputStream.write(buffer, 0, bytesRead)
                     totalRead += bytesRead
                     outputStream.flush() // Flush plus fréquent pour éviter les blocages
                 }
-    
+
                 Log.d("ImagesTransfer", "Image transférée: $fileName ($totalRead octets)")
             } catch (e: Exception) {
                 Log.e("ImagesTransfer", "Erreur lors du transfert de l'image ${imageInfo.path}", e)
@@ -864,12 +920,22 @@
             }
         } ?: throw Exception("Impossible d'ouvrir l'image ${imageInfo.path}")
     }
+
+
+    private fun isConnectedToHotspot(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+
+        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+    }
+
     private fun getWifiIpAddress(context: Context): String? {
         try {
             // D'abord, essayer via le WifiManager
             val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
             val ipAddress = wifiManager.connectionInfo.ipAddress
-            
+
             // Convertir l'entier en adresse IP
             if (ipAddress != 0) {
                 return String.format(
@@ -880,13 +946,13 @@
                     ipAddress shr 24 and 0xff
                 )
             }
-            
+
             // Si WifiManager échoue, essayer via les interfaces réseau (fonctionne en hotspot aussi)
             val networkInterfaces = NetworkInterface.getNetworkInterfaces()
             while (networkInterfaces.hasMoreElements()) {
                 val networkInterface = networkInterfaces.nextElement()
                 val addresses = networkInterface.inetAddresses
-                
+
                 while (addresses.hasMoreElements()) {
                     val address = addresses.nextElement()
                     if (!address.isLoopbackAddress && address is Inet4Address) {
@@ -897,7 +963,7 @@
         } catch (e: Exception) {
             Log.e("ImagesTransfer", "Erreur lors de la récupération de l'adresse IP", e)
         }
-        
+
         return null
     }
     private suspend fun findServer(networkPrefix: String, port: Int): String? = withContext(Dispatchers.IO) {
@@ -908,7 +974,7 @@
             "101",  // Adresse commune secondaire
             "254"   // Dernière adresse souvent utilisée par les hôtes
         )
-        
+
         // D'abord, tester si le serveur est sur notre propre machine
         try {
             val socket = Socket()
@@ -919,7 +985,7 @@
         } catch (e: Exception) {
             // Ignorer et continuer
         }
-        
+
         // Ensuite, essayer les adresses prioritaires
         for (lastOctet in priorityAddresses) {
             val potentialServer = "$networkPrefix.$lastOctet"
@@ -927,7 +993,7 @@
                 val socket = Socket()
                 socket.soTimeout = 500
                 socket.connect(InetSocketAddress(potentialServer, port), 500)
-                
+
                 // Vérifier si c'est bien notre serveur en envoyant une requête GET
                 try {
                     val urlConnection = URL("http://$potentialServer:$port").openConnection() as HttpURLConnection
@@ -935,7 +1001,7 @@
                     urlConnection.connectTimeout = 500
                     urlConnection.readTimeout = 500
                     val responseCode = urlConnection.responseCode
-                    
+
                     if (responseCode == HttpURLConnection.HTTP_OK) {
                         socket.close()
                         Log.d("ImagesTransfer", "Serveur vérifié à l'adresse $potentialServer")
@@ -948,17 +1014,17 @@
                     Log.d("ImagesTransfer", "Serveur potentiel trouvé à $potentialServer (sans vérification HTTP)")
                     return@withContext potentialServer
                 }
-                
+
                 socket.close()
             } catch (e: Exception) {
                 // Ignorer et essayer l'adresse suivante
             }
         }
-        
+
         // Scan progressif du réseau, en commençant par les adresses plus susceptibles d'être assignées
         // aux serveurs ou PC (2-20, 100-110, 200-254)
         val scanRanges = listOf(2..20, 100..110, 200..254, 21..99, 111..199)
-        
+
         for (range in scanRanges) {
             for (i in range) {
                 val potentialServer = "$networkPrefix.$i"
@@ -974,26 +1040,6 @@
                 }
             }
         }
-        
+
         null // Aucun serveur trouvé
-    }
-    private fun getFormattedDate(date: Long): String {
-        val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
-        return dateFormat.format(Date(date))
-    }
-    
-    private suspend fun verifyServerAvailability(serverIp: String, port: Int): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val url = URL("http://$serverIp:$port")
-            val connection = url.openConnection() as HttpURLConnection
-            connection.requestMethod = "GET"
-            connection.connectTimeout = 2000
-            connection.readTimeout = 2000
-            
-            val responseCode = connection.responseCode
-            return@withContext responseCode == HttpURLConnection.HTTP_OK
-        } catch (e: Exception) {
-            Log.e("ImagesTransfer", "Erreur lors de la vérification du serveur", e)
-            return@withContext false
-        }
     }
