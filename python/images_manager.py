@@ -110,12 +110,19 @@ class ImageCleaner:
     def copy_images_to_folder(self, image_paths, output_folder):
         """
         Copie les images retenues vers le dossier de sortie.
+        Vide le dossier s'il existe déjà.
         
         :param image_paths: Liste des chemins des images à copier.
         :param output_folder: Dossier de destination.
         """
-        if not os.path.exists(output_folder):
-            os.makedirs(output_folder)
+        # Si le dossier existe, on le vide complètement
+        if os.path.exists(output_folder):
+            print(f"Le dossier {output_folder} existe déjà. Vidage en cours...")
+            shutil.rmtree(output_folder)
+        
+        # Création du dossier (vide)
+        os.makedirs(output_folder)
+        print(f"Dossier créé/vidé : {output_folder}")
         
         copied_count = 0
         for image_path in image_paths:
@@ -123,7 +130,7 @@ class ImageCleaner:
                 filename = os.path.basename(image_path)
                 destination = os.path.join(output_folder, filename)
                 
-                # Gestion des conflits de noms
+                # Gestion des conflits de noms (normalement pas nécessaire car dossier vidé)
                 counter = 1
                 base_name, extension = os.path.splitext(filename)
                 while os.path.exists(destination):

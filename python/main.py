@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     os.mkdir(destination_directory)
 
-    create_category_folders_from_csv(directory + ".csv", destination_directory)
+    create_category_folders_from_csv(output_folder + ".csv", destination_directory)
 
     total_time = time.time() - starting_time
     print(f"Temps total d'exécution : {total_time:.2f} secondes")
