@@ -12,7 +12,7 @@ import torch
 from transformers import CLIPProcessor, CLIPModel
 from sklearn.metrics.pairwise import cosine_similarity
 
-DIRECTORY = "photos_final"
+DIRECTORY = "temp"
 DESTINATION_DIRECORY = "results"
 
 def encode_image(image_path, max_size=(512, 512), quality=80):
@@ -151,7 +151,7 @@ class ClusteringManager(EmbeddingsManager):
 
     def neighbors_similarity_clustering(self, embeddings_dict, threshold=0.6, n_neighbors=3):
         clusters_by_day = {}
-        self.global_cluster_id = 0  # On le met en attribut d’instance si tu veux l’utiliser ailleurs
+        self.global_cluster_id = 1
 
         for day, image_list in embeddings_dict.items():
             print(f"Clustering du jour {day} avec {len(image_list)} images...")
@@ -200,11 +200,6 @@ class ClusteringManager(EmbeddingsManager):
         if current_cluster:
             self._finalize_cluster(clusters, current_cluster)
 
-        # Collecter les images non clustérisées dans "others"
-        other_cluster = self._find_unclustered_images(paths, clusters)
-        if other_cluster:
-            clusters["others"] = other_cluster
-
         return clusters
 
     def _find_similar_neighbors(self, i, embeddings, paths, threshold, n_neighbors):
@@ -223,18 +218,6 @@ class ClusteringManager(EmbeddingsManager):
         cluster_images.clear()
         self.global_cluster_id += 1
 
-    def _find_unclustered_images(self, paths, clusters):
-        other_cluster = []
-        for path in paths:
-            found = False
-            for cluster_name, cluster_images in clusters.items():
-                if path in cluster_images:
-                    found = True
-                    break
-            if not found:
-                other_cluster.append(path)
-
-        return other_cluster
 
     def perform_neighbors_clustering(self, threshold=0.6, n_neighbors=3):
         print("Début du clustering par voisins proches...")
