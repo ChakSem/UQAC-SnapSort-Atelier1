@@ -1,0 +1,9 @@
+pillow
+tabulate
+numpy
+torch
+transformers
+scikit-learn
+pandas
+opencv-python
+imagehash
