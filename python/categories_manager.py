@@ -10,6 +10,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from dataframe_completion import DataframeCompletion
 from clustering_manager import ClusteringManager
 from embeddings_manager import EmbeddingsManager
+from images_manager import ImageCleaner
 
 class CategoriesManager(EmbeddingsManager):
     def __init__(self, directory, allowed_extensions=None):
@@ -20,6 +21,7 @@ class CategoriesManager(EmbeddingsManager):
         self.directory = directory
 
         self.image_paths = self.get_image_paths(directory)
+        self.image_cleaner = ImageCleaner()
 
         self.dataframe_manager = DataframeCompletion(self.image_paths)
         self.df = DataframeCompletion(self.image_paths).get_dataframe()
@@ -50,6 +52,11 @@ class CategoriesManager(EmbeddingsManager):
         return en_categories, predefined_categories
 
     def get_cluster_images(self, image_paths):
+        image_paths = self.image_cleaner.clean_cluster(image_paths)
+        if not image_paths:
+            print("Aucune image retenue après nettoyage!")
+            return []
+        
         # Encodage par lots des images du cluster
         cluster_images = []
 
@@ -126,7 +133,7 @@ class CategoriesManager(EmbeddingsManager):
         #print(clusters_by_day)
 
         # Traitement de chaque cluster
-        print(f"ETAPE 4 - Association des noms aux clusters :\n")
+        print(f"ETAPE 3 - Association des noms aux clusters :\n")
         total_clusters = sum(len(clusters) for clusters in clusters_by_day.values())
         cluster_counter = 0
         for day, day_clusters in clusters_by_day.items():
@@ -183,5 +190,5 @@ class CategoriesManager(EmbeddingsManager):
         print(f"Temps de recherche des catégories : {categories_time:.2f} secondes")
 
         self.dataframe_manager.df = self.df
-        print(f"ETAPE 5 - Copie des images triées :\n")
+        print(f"ETAPE 4 - Copie des images triées :\n")
         self.dataframe_manager.save_to_csv(self.directory + ".csv")

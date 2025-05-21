@@ -9,6 +9,7 @@ class ClusteringManager(EmbeddingsManager):
 
     def day_sorting(self):
         days = {}
+        no_date_images = []
         for index, row in self.df.iterrows():
             date = row["date_time"]
             if date:
@@ -16,7 +17,13 @@ class ClusteringManager(EmbeddingsManager):
                 if day not in days:
                     days[day] = []
                 days[day].append(row["path"])
-
+            else:
+                no_date_images.append(row["path"])
+                
+        if no_date_images:
+            days["no_date"] = no_date_images
+            print(f"Images sans date trouvées: {len(no_date_images)}")
+        
         return days
 
     def days_embedding(self, days_dict):
@@ -134,9 +141,9 @@ class ClusteringManager(EmbeddingsManager):
     def perform_neighbors_clustering(self, threshold=0.6, n_neighbors=3):
         #print("CLUSTERING DES IMAGES PAR VOISINS PROCHES...")
         days_dict = self.day_sorting()
-        print(f"ETAPE 2 - Génération des embeddings : \n")
+        print(f"ETAPE 1 - Génération des embeddings : \n")
         embeddings_dict = self.days_embedding(days_dict)
-        print(f"ETAPE 3 - Clustering des images :\n")
+        print(f"ETAPE 2 - Clustering des images :\n")
         clusters = self.neighbors_similarity_clustering(embeddings_dict, threshold, n_neighbors)
         
         # Mise à jour du DataFrame avec les informations de cluster

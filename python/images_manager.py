@@ -8,29 +8,16 @@ import imagehash
 
 
 class ImageCleaner:
-    def __init__(self, directory, target_size=(600, 600), allowed_extensions=None):
+    def __init__(self, target_size=(600, 600), allowed_extensions=None):
         """
-        :param directory: Répertoire contenant les images.
         :param target_size: Tuple auquel redimensionner toutes les images.
         :param allowed_extensions: Ensemble des extensions d'image autorisées.
         """
         if allowed_extensions is None:
             allowed_extensions = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 
-        self.directory = directory
         self.target_size = target_size
         self.allowed_extensions = allowed_extensions
-
-    def get_image_paths(self):
-        paths = [] 
-
-        for file_name in os.listdir(self.directory):
-            extension = os.path.splitext(file_name)[1].lower()
-            if extension in self.allowed_extensions:
-                path = os.path.join(self.directory, file_name)
-                paths.append(path)
-
-        return paths
 
     def read_and_resize(self, path):
         img = cv2.imread(path)
@@ -54,14 +41,16 @@ class ImageCleaner:
         hash2 = imagehash.phash(pil2)
         return abs(hash1 - hash2)
 
-    def get_images_with_quality(self):
+    def get_images_with_quality(self, image_paths=None):
         """
-        Parcourt toutes les images du répertoire, les redimensionne et calcule leur qualité
-        (variance du Laplacien). Retourne une liste de tuples (chemin, qualité).
+        Calcule la qualité de chaque image.
+        
+        :param image_paths: Liste de chemins d'images à analyser
+        :return: Liste de tuples (chemin, qualité)
         """
         images_with_quality = []
-
-        for path in self.get_image_paths():
+        
+        for path in image_paths:
             img = self.read_and_resize(path)
             if img is None:
                 continue
@@ -86,7 +75,6 @@ class ImageCleaner:
 
         i = 0
         start_all = time.time()
-        print(f"ETAPE 1 - Traitement des doublons :\n")
         for path, quality in images_with_quality:
             i += 1
             start_one = time.time()
@@ -120,84 +108,31 @@ class ImageCleaner:
         print(f"Temps total pour le traitement des doublons : {end_all - start_all:.2f} secondes")
 
         return unique, duplicates
-
-    def copy_images_to_folder(self, image_paths, output_folder):
+    
+    def clean_cluster(self, image_paths, blur_threshold=100.0, phash_threshold=20):
         """
-        Copie les images retenues vers le dossier de sortie.
-        Vide le dossier s'il existe déjà.
+        Nettoie un cluster d'images en supprimant les doublons et les images floues.
         
-        :param image_paths: Liste des chemins des images à copier.
-        :param output_folder: Dossier de destination.
+        :param image_paths: Liste des chemins des images du cluster
+        :param blur_threshold: Seuil de qualité (variance Laplacian)
+        :param phash_threshold: Seuil de distance pHash pour la détection de doublons
+        :return: Liste des chemins d'images conservées
         """
-        # Si le dossier existe, on le vide complètement
-        if os.path.exists(output_folder):
-            print(f"Le dossier {output_folder} existe déjà. Vidage en cours...")
-            shutil.rmtree(output_folder)
+        images_with_quality = self.get_images_with_quality(image_paths)
         
-        # Création du dossier (vide)
-        os.makedirs(output_folder)
-        print(f"Dossier créé/vidé : {output_folder}")
+        if not images_with_quality:
+            return []
+            
+        print(f"Nombre d'images dans le cluster : {len(images_with_quality)}")
         
-        copied_count = 0
-        for image_path in image_paths:
-            if os.path.exists(image_path):
-                filename = os.path.basename(image_path)
-                destination = os.path.join(output_folder, filename)
-                counter = 1
-                base_name, extension = os.path.splitext(filename)
-                while os.path.exists(destination):
-                    new_filename = f"{base_name}_{counter}{extension}"
-                    destination = os.path.join(output_folder, new_filename)
-                    counter += 1
-                
-                shutil.copy2(image_path, destination)
-                copied_count += 1
-        
-        print(f"Nombre d'images copiées : {copied_count}")
-        return copied_count
-
-    def process(self, output_folder=None, blur_threshold=100.0, phash_threshold=20):
-        """
-        Récupère toutes les images et calcule leur qualité. Applique la détection des doublons sur l'ensemble des images.
-        Sépare les images floues selon le seuil de qualité. Copie les images uniques non floues dans un dossier de sortie.
-        
-        :param output_folder: Dossier de sortie pour les images retenues. Si None, utilise un dossier temporaire.
-        :param blur_threshold: Seuil de qualité (variance Laplacian) pour classer une image comme floue.
-        :param phash_threshold: Seuil de distance pHash pour la détection de doublons.
-        :param use_temp_folder: Si True, crée un dossier temporaire. Si False, utilise output_folder.
-        :return: Chemin du dossier contenant les images retenues.
-        """
-
-        #print("TRAITEMENT DES DOUBLONS ET DES IMAGES FLOUES...")
-
-        images_with_quality = self.get_images_with_quality()
-        print(f"Nombre total d'images trouvées : {len(images_with_quality)}")
-        
+        # Suppression des doublons
         unique, duplicates = self.remove_duplicates(images_with_quality, phash_threshold=phash_threshold)
-        unique_paths = [p for (p, q) in unique]
-        print(f"Nombre d'images uniques : {len(unique_paths)}")
-        print(f"Nombre de doublons : {len(duplicates)}")
         
-        blurry = [path for (path, quality) in images_with_quality if quality < blur_threshold]
-        print(f"Nombre d'images floues (qualité < {blur_threshold}) : {len(blurry)}")
-
+        # Filtrage des images floues
         retained_images = [path for (path, quality) in unique if quality > blur_threshold]
-        print(f"Nombre d'images retenues : {len(retained_images)}")
         
-        # Création d'un dossier de sortie
-        output_folder = f"{self.directory}_cleaned"
-        output_path = output_folder
-        print(f"Dossier de sortie : {output_path}")
-
-        # Copie des images retenues
-        self.copy_images_to_folder(retained_images, output_path)
+        print(f"Images retenues après nettoyage : {len(retained_images)}/{len(image_paths)}")
+        print(f"Doublons supprimés : {len(duplicates)}")
+        print(f"Images floues supprimées : {len(unique) - len(retained_images)}")
         
-        # Affichage des statistiques
-        print("\nRésultats finaux :")
-        print(f"Doublons détectés : {len(duplicates)}")
-        print(f"Images floues détectées : {len(blurry)}")
-        print(f"Images uniques : {len(unique_paths)}")
-        print(f"Images retenues et copiées : {len(retained_images)}")
-        print(f"Dossier de sortie : {output_path}")
-        
-        return output_path
+        return retained_images
