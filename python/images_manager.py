@@ -78,7 +78,7 @@ class ImageCleaner:
         for path, quality in images_with_quality:
             i += 1
             start_one = time.time()
-            print(f"Image {i}/{len(images_with_quality)}")
+            print(f"Etape [4/5] : [{i}/{len(images_with_quality)}]\n")
             img1 = self.read_and_resize(path)
             if img1 is None:
                 continue
@@ -126,6 +126,7 @@ class ImageCleaner:
         print(f"Nombre d'images dans le cluster : {len(images_with_quality)}")
         
         # Suppression des doublons
+        print("ETAPE 4 - Suppression des doublons :\n")
         unique, duplicates = self.remove_duplicates(images_with_quality, phash_threshold=phash_threshold)
         
         # Filtrage des images floues

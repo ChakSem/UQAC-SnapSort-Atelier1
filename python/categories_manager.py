@@ -139,7 +139,7 @@ class CategoriesManager(EmbeddingsManager):
         for day, day_clusters in clusters_by_day.items():
             for cluster_name, image_paths in day_clusters.items():
                 cluster_counter += 1
-                print(f"Cluster {cluster_counter}/{total_clusters}")
+                print(f"Etape [3/5] : [{cluster_counter}/{total_clusters}]")
 
                 if not image_paths:
                     continue
@@ -190,5 +190,5 @@ class CategoriesManager(EmbeddingsManager):
         print(f"Temps de recherche des catégories : {categories_time:.2f} secondes")
 
         self.dataframe_manager.df = self.df
-        print(f"ETAPE 4 - Copie des images triées :\n")
+        print(f"ETAPE 5 - Copie des images triées :\n")
         self.dataframe_manager.save_to_csv(self.directory + ".csv")

@@ -44,7 +44,7 @@ def create_category_folders_from_csv(csv_file, destination_directory):
             if os.path.exists(source_path):
                 destination_path = os.path.join(category_folder, os.path.basename(source_path))
                 shutil.copy(source_path, destination_path)
-                print(f"Images {i}/{total_images}")
+                print(f"Etape [5/5] : Images [{i}/{total_images}]")
                 #print(f"Copié : {source_path} -> {destination_path}")
             else:
                 print(f"Fichier non trouvé : {source_path}")
