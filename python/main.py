@@ -5,7 +5,7 @@ import sys
 sys.stdout.reconfigure(line_buffering=True)
 
 from functions import create_category_folders_from_csv, set_parser
-from llm_call import LLMCall
+from categories_manager import CategoriesManager
 from images_manager import ImageCleaner
 
 if __name__ == "__main__":
@@ -14,7 +14,7 @@ if __name__ == "__main__":
     destination_directory = args.destination_directory
     images_manager = ImageCleaner(directory)
     output_folder = images_manager.process()
-    call = LLMCall(directory=output_folder)
+    call = CategoriesManager(directory=output_folder)
     starting_time = time.time()
 
     call.pipeline(starting_time)

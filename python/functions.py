@@ -30,6 +30,9 @@ def create_category_folders_from_csv(csv_file, destination_directory):
 
     categories = df['categories'].dropna().unique().tolist()
 
+    total_images = len(df['image_name'].unique())
+    i = 0
+
     for category in categories:
         category_folder = os.path.join(destination_directory, category)
         os.makedirs(category_folder, exist_ok=True)
@@ -37,9 +40,11 @@ def create_category_folders_from_csv(csv_file, destination_directory):
         images_in_category = df[df['categories'] == category]['path'].tolist()
 
         for source_path in images_in_category:
+            i += 1
             if os.path.exists(source_path):
                 destination_path = os.path.join(category_folder, os.path.basename(source_path))
                 shutil.copy(source_path, destination_path)
-                print(f"Copié : {source_path} -> {destination_path}")
+                print(f"Images {i}/{total_images}")
+                #print(f"Copié : {source_path} -> {destination_path}")
             else:
                 print(f"Fichier non trouvé : {source_path}")

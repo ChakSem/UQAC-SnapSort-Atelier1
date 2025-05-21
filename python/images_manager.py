@@ -1,9 +1,11 @@
 import os
+import time
 import cv2
 import shutil
 import tempfile
 from PIL import Image
 import imagehash
+
 
 class ImageCleaner:
     def __init__(self, directory, target_size=(600, 600), allowed_extensions=None):
@@ -81,8 +83,14 @@ class ImageCleaner:
         """
         unique = []      
         duplicates = []
-        
+
+        i = 0
+        start_all = time.time()
+        print(f"ETAPE 1 - Traitement des doublons :\n")
         for path, quality in images_with_quality:
+            i += 1
+            start_one = time.time()
+            print(f"Image {i}/{len(images_with_quality)}")
             img1 = self.read_and_resize(path)
             if img1 is None:
                 continue
@@ -104,7 +112,13 @@ class ImageCleaner:
             
             if not is_duplicate:
                 unique.append((path, quality))
-        
+
+            end_one = time.time()
+            print(f"Temps écoulé : {end_one - start_one:.2f} s\n")
+
+        end_all = time.time()
+        print(f"Temps total pour le traitement des doublons : {end_all - start_all:.2f} secondes")
+
         return unique, duplicates
 
     def copy_images_to_folder(self, image_paths, output_folder):
@@ -129,8 +143,6 @@ class ImageCleaner:
             if os.path.exists(image_path):
                 filename = os.path.basename(image_path)
                 destination = os.path.join(output_folder, filename)
-                
-                # Gestion des conflits de noms (normalement pas nécessaire car dossier vidé)
                 counter = 1
                 base_name, extension = os.path.splitext(filename)
                 while os.path.exists(destination):
@@ -156,7 +168,7 @@ class ImageCleaner:
         :return: Chemin du dossier contenant les images retenues.
         """
 
-        print("TRAITEMENT DES DOUBLONS ET DES IMAGES FLOUES...")
+        #print("TRAITEMENT DES DOUBLONS ET DES IMAGES FLOUES...")
 
         images_with_quality = self.get_images_with_quality()
         print(f"Nombre total d'images trouvées : {len(images_with_quality)}")

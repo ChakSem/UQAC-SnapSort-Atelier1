@@ -21,8 +21,10 @@ class ClusteringManager(EmbeddingsManager):
 
     def days_embedding(self, days_dict):
         embeddings_dict = {}
+        total_images = sum(len(images) for images in days_dict.values())
+        image_counter = 0
         for day, images in days_dict.items():
-            print(f"Génération des embeddings pour le jour: {day}")
+            # Génération des embeddings pour chaque image
             embeddings = self.image_embedding(images)
             
             if embeddings is None:
@@ -30,6 +32,8 @@ class ClusteringManager(EmbeddingsManager):
                 
             embeddings_dict[day] = []
             for i, image in enumerate(images):
+                image_counter += 1
+                print(f"Image {image_counter}/{total_images}")
                 if i < len(embeddings):  # Protection contre les indices hors limites
                     embeddings_dict[day].append({
                         'path': image,
@@ -41,14 +45,16 @@ class ClusteringManager(EmbeddingsManager):
         clusters_by_day = {}
         self.global_cluster_id = 0  # On le met en attribut d’instance si tu veux l’utiliser ailleurs
 
+        total_images = sum(len(images) for images in embeddings_dict.values())
+        last_number = 1
         for day, image_list in embeddings_dict.items():
-            print(f"Clustering du jour {day} avec {len(image_list)} images...")
-            clusters = self._cluster_day_embeddings(image_list, threshold, n_neighbors)
+            clusters = self._cluster_day_embeddings(image_list, threshold, n_neighbors, total_images, last_number)
+            last_number += len(image_list)
             clusters_by_day[day] = clusters
 
         return clusters_by_day
 
-    def _cluster_day_embeddings(self, image_list, threshold, n_neighbors):
+    def _cluster_day_embeddings(self, image_list, threshold, n_neighbors, total_images, last_number):
         paths = [image['path'] for image in image_list]
         embeddings = np.array([image['embedding'] for image in image_list])
         N = len(paths)
@@ -58,6 +64,7 @@ class ClusteringManager(EmbeddingsManager):
         already_clustered = set()   # Ensemble pour suivre les images déjà clustérisées
 
         for i in range(N):
+            print(f"Image {i + last_number}/{total_images}")
             current_img = paths[i]
             if current_img in already_clustered:
                 continue
@@ -99,7 +106,7 @@ class ClusteringManager(EmbeddingsManager):
         neighbor_img = None
         for j in range(i + 1, n_neighbors):
             sim = np.dot(embeddings[i], embeddings[j])
-            print(f"Les photos {paths[i]} et {paths[j]} ont une similarité de {sim:.2f}")
+            #print(f"Les photos {paths[i]} et {paths[j]} ont une similarité de {sim:.2f}")
             if sim > threshold:
                 neighbor_img = paths[j]
 
@@ -125,9 +132,11 @@ class ClusteringManager(EmbeddingsManager):
         return other_cluster
 
     def perform_neighbors_clustering(self, threshold=0.6, n_neighbors=3):
-        print("Début du clustering par voisins proches...")
+        #print("CLUSTERING DES IMAGES PAR VOISINS PROCHES...")
         days_dict = self.day_sorting()
+        print(f"ETAPE 2 - Génération des embeddings : \n")
         embeddings_dict = self.days_embedding(days_dict)
+        print(f"ETAPE 3 - Clustering des images :\n")
         clusters = self.neighbors_similarity_clustering(embeddings_dict, threshold, n_neighbors)
         
         # Mise à jour du DataFrame avec les informations de cluster

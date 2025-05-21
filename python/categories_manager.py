@@ -11,7 +11,7 @@ from dataframe_completion import DataframeCompletion
 from clustering_manager import ClusteringManager
 from embeddings_manager import EmbeddingsManager
 
-class LLMCall(EmbeddingsManager):
+class CategoriesManager(EmbeddingsManager):
     def __init__(self, directory, allowed_extensions=None):
         super().__init__()
         if allowed_extensions is None:
@@ -86,9 +86,9 @@ class LLMCall(EmbeddingsManager):
         best_cat_score = normalized_similarities[best_cat_idx]
         best_cat = predefined_categories[best_cat_idx]
 
-        for cat, sim in zip(predefined_categories, normalized_similarities):
+        '''for cat, sim in zip(predefined_categories, normalized_similarities):
             print(f"{cat}: {sim:.3f}")
-        print("\n")
+        print("\n")'''
 
         # Assignation de la catégorie à toutes les images du cluster
         # Vérifier si "Autres" est suffisamment proche du meilleur score
@@ -114,7 +114,7 @@ class LLMCall(EmbeddingsManager):
         clustered_df, clusters_by_day = clustering_manager.perform_neighbors_clustering(threshold=0.6, n_neighbors=3)
 
         self.df = clustered_df
-        print(f"Clustering terminé: {len(clusters_by_day)} jours traités")
+        #print(f"Clustering terminé: {len(clusters_by_day)} jours traités")
 
         # Encodage des catégories
         text_inputs = self.clip_processor(text=en_categories, return_tensors="pt", padding=True).to(self.device)
@@ -123,15 +123,21 @@ class LLMCall(EmbeddingsManager):
         category_embeddings = category_embeddings / category_embeddings.norm(p=2, dim=-1, keepdim=True)
         category_embeddings = category_embeddings.cpu().numpy()
 
-        print(clusters_by_day)
+        #print(clusters_by_day)
 
         # Traitement de chaque cluster
+        print(f"ETAPE 4 - Association des noms aux clusters :\n")
+        total_clusters = sum(len(clusters) for clusters in clusters_by_day.values())
+        cluster_counter = 0
         for day, day_clusters in clusters_by_day.items():
             for cluster_name, image_paths in day_clusters.items():
+                cluster_counter += 1
+                print(f"Cluster {cluster_counter}/{total_clusters}")
+
                 if not image_paths:
                     continue
 
-                print(f"\nTraitement du cluster {cluster_name} avec {len(image_paths)} images")
+                #print(f"\nTraitement du cluster {cluster_name} avec {len(image_paths)} images")
 
                 cluster_images = self.get_cluster_images(image_paths)
                 if not cluster_images:
@@ -161,7 +167,7 @@ class LLMCall(EmbeddingsManager):
                     category = formatted_date + "_" + best_cat
                     if best_cat == "Autres" or (diff_with_best < threshold and best_cat != "Autres"):
                         category = "Autres"
-                    print(f"Cluster {cluster_name}: catégorie attribuée = {category} (score: {best_cat_score:.3f})")
+                    print(f"Cluster {cluster_counter}: catégorie attribuée = {category} (score: {best_cat_score:.3f})")
 
                     # Mise à jour du DataFrame
                     for path in image_paths:
@@ -170,11 +176,12 @@ class LLMCall(EmbeddingsManager):
         return self.df
 
     def pipeline(self, starting_time):
-        print("RECHERCHE DES CATEGORIES AVEC CLUSTERING...")
+        #print("RECHERCHE DES CATEGORIES AVEC CLUSTERING...")
         self.df = self.pipeline_categories_embedding_with_clusters()
         categories_time = time.time() - starting_time
-        print(tabulate(self.df, headers="keys", tablefmt="psql"))
+        #print(tabulate(self.df, headers="keys", tablefmt="psql"))
         print(f"Temps de recherche des catégories : {categories_time:.2f} secondes")
 
         self.dataframe_manager.df = self.df
+        print(f"ETAPE 5 - Copie des images triées :\n")
         self.dataframe_manager.save_to_csv(self.directory + ".csv")
