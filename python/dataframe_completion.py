@@ -31,7 +31,8 @@ class DataframeCompletion:
                     if tag == "DateTime":
                         date_time = value
                     elif tag == "GPSInfo":
-                        localisation = value
+                        gps_filtered = {k: value[k] for k in [1, 2, 3, 4] if k in value}
+                        localisation = gps_filtered
             else:
                 print("Aucune donnée EXIF trouvée.")
 
