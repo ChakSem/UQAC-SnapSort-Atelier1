@@ -159,21 +159,24 @@ class CategoriesManager(EmbeddingsManager):
 
                 # Combinaison de tous les embeddings du cluster
                 if all_embeddings:
+                    best_cat, best_cat_score, diff_with_best = self.best_cluster_category(all_embeddings,category_embeddings,predefined_categories)
 
-                    best_cat, best_cat_score, diff_with_best = self.best_cluster_category(all_embeddings,
-                                                                                          category_embeddings,
-                                                                                          predefined_categories)
-
-                    if len(image_paths) == 1:
-                        best_cat = "Autres"
-
-                    # Attribuer "Autres" si:
-                    # - soit c'est déjà la meilleure catégorie (best_cat == "Autres")
-                    # - soit son score est suffisamment proche du meilleur score (diff < 0.2) et qu'il n'est pas déjà le meilleur
+                    is_single_image = len(image_paths) == 1
+                    is_ambiguous = (diff_with_best < threshold and best_cat != "Autres")
                     formatted_date = day.replace(":", "_")
                     category = formatted_date + "_" + best_cat
-                    if best_cat == "Autres" or (diff_with_best < threshold and best_cat != "Autres"):
-                        category = "Autres"
+
+                    # Attribuer "Autres" si:
+                        # - soit son score est suffisamment proche du meilleur score (diff < 0.1) et qu'il n'est pas déjà le meilleur
+                        # - soit c'est déjà la meilleure catégorie (best_cat == "Autres")
+                        # - soit le cluster ne contient qu'une seule image
+                        
+                    if is_ambiguous:
+                        category = "Autres/Autres"
+
+                    elif best_cat == "Autres" or is_single_image:
+                        category = f"Autres/{best_cat}" # Sous dossier dans "Autres" avec la catégorie précédemment attribuée
+
                     print(f"Cluster {cluster_counter}: catégorie attribuée = {category} (score: {best_cat_score:.3f})")
 
                     # Mise à jour du DataFrame
@@ -181,6 +184,18 @@ class CategoriesManager(EmbeddingsManager):
                         self.df.loc[self.df["path"] == path, "categories"] = category
 
         return self.df
+    
+    def create_autres_subfolders(self):
+        mask = self.df["categories"].notna() & self.df["categories"].astype(str).str.startswith("Autres/")
+        autres_categories = self.df[mask]["categories"].unique()
+        
+        for category in autres_categories:
+            subfolder = category
+            target_dir = os.path.join(self.directory, subfolder)
+            
+            # Créer le répertoire s'il n'existe pas
+            os.makedirs(target_dir, exist_ok=True)
+            print(f"Création du sous-dossier: {target_dir}")
 
     def pipeline(self, starting_time):
         #print("RECHERCHE DES CATEGORIES AVEC CLUSTERING...")
@@ -192,3 +207,4 @@ class CategoriesManager(EmbeddingsManager):
         self.dataframe_manager.df = self.df
         print(f"ETAPE 4 - Copie des images triées :\n")
         self.dataframe_manager.save_to_csv(self.directory + ".csv")
+        self.create_autres_subfolders()
