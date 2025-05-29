@@ -40,7 +40,7 @@ class ClusteringManager(EmbeddingsManager):
             embeddings_dict[day] = []
             for i, image in enumerate(images):
                 image_counter += 1
-                print(f"Etape [1/5] : [{image_counter}/{total_images}]\n")
+                print(f"Etape [1/5] : [{image_counter}/{total_images}]")
                 if i < len(embeddings):  # Protection contre les indices hors limites
                     embeddings_dict[day].append({
                         'path': image,
