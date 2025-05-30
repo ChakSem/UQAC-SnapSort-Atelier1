@@ -14,17 +14,16 @@ class DataframeCompletion:
             image = Image.open(path)
             image_name = os.path.basename(path)
 
-            date_time, localisation = self.extract_exif_data(image)
+            date_time, latitude, longitude = self.extract_exif_data(image)
 
-            image_list.append((image_name, path, date_time, localisation))
+            image_list.append((image_name, path, date_time, latitude, longitude))
 
-        df = pd.DataFrame(image_list, columns=["image_name", "path", "date_time", "localisation"])
-
+        df = pd.DataFrame(image_list, columns=["image_name", "path", "date_time", "latitude", "longitude"])
         return df
 
     def extract_exif_data(self, image):
             exifdata = image._getexif()
-            date_time, localisation = None, None
+            date_time, latitude, longitude = None, None, None
             if exifdata:
                 for tag_id, value in exifdata.items():
                     tag = Image.ExifTags.TAGS.get(tag_id, tag_id)
@@ -32,11 +31,26 @@ class DataframeCompletion:
                         date_time = value
                     elif tag == "GPSInfo":
                         gps_filtered = {k: value[k] for k in [1, 2, 3, 4] if k in value}
-                        localisation = gps_filtered
+                        if gps_filtered:
+                            lat, lon = self.extract_coordinates(gps_filtered)
+                            latitude = lat
+                            longitude = lon
             else:
                 print("Aucune donnée EXIF trouvée.")
 
-            return date_time, localisation
+            return date_time, latitude, longitude
+
+    def dms_to_decimal(self, dms, ref):
+        degrees, minutes, seconds = dms
+        decimal = degrees + minutes / 60 + seconds / 3600
+        if ref in ['S', 'W']:
+            decimal = -decimal
+        return decimal
+
+    def extract_coordinates(self, gps_dict):
+        lat = self.dms_to_decimal(gps_dict[2], gps_dict[1])
+        lon = self.dms_to_decimal(gps_dict[4], gps_dict[3])
+        return lat, lon
 
     def get_dataframe(self):
         return self.df
