@@ -170,7 +170,7 @@ class CategoriesManager(EmbeddingsManager):
                         # - soit son score est suffisamment proche du meilleur score (diff < 0.1) et qu'il n'est pas déjà le meilleur
                         # - soit c'est déjà la meilleure catégorie (best_cat == "Autres")
                         # - soit le cluster ne contient qu'une seule image
-                        
+
                     if is_ambiguous:
                         category = "Autres/Autres"
 
@@ -185,13 +185,13 @@ class CategoriesManager(EmbeddingsManager):
 
         return self.df
     
-    def create_autres_subfolders(self):
+    def create_autres_subfolders(self, target_directory):
         mask = self.df["categories"].notna() & self.df["categories"].astype(str).str.startswith("Autres/")
         autres_categories = self.df[mask]["categories"].unique()
         
         for category in autres_categories:
             subfolder = category
-            target_dir = os.path.join(self.directory, subfolder)
+            target_dir = os.path.join(target_directory, subfolder)
             
             # Créer le répertoire s'il n'existe pas
             os.makedirs(target_dir, exist_ok=True)
@@ -207,4 +207,3 @@ class CategoriesManager(EmbeddingsManager):
         self.dataframe_manager.df = self.df
         print(f"ETAPE 4 - Copie des images triées :\n")
         self.dataframe_manager.save_to_csv(self.directory + ".csv")
-        self.create_autres_subfolders()

@@ -20,6 +20,7 @@ if __name__ == "__main__":
         shutil.rmtree(destination_directory)
 
     os.mkdir(destination_directory)
+    call.create_autres_subfolders(destination_directory)
 
     create_category_folders_from_csv(directory + ".csv", destination_directory)
 
