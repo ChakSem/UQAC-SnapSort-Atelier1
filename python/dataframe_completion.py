@@ -33,8 +33,8 @@ class DataframeCompletion:
                         gps_filtered = {k: value[k] for k in [1, 2, 3, 4] if k in value}
                         if gps_filtered:
                             lat, lon = self.extract_coordinates(gps_filtered)
-                            latitude = lat
-                            longitude = lon
+                            latitude = float(lat)
+                            longitude = float(lon)
             else:
                 print("Aucune donnée EXIF trouvée.")
 
