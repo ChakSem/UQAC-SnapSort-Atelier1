@@ -6,6 +6,7 @@ interface TransferSectionProps {
   serverIp: string;
   phoneIp: string;
   transferQrCode: string;
+  isStarting?: boolean;
   onStartService: () => void;
   onStopService: () => void;
   onFetchIp: () => void;
@@ -16,6 +17,7 @@ export const TransferSection: React.FC<TransferSectionProps> = ({
   serverIp,
   phoneIp,
   transferQrCode,
+  isStarting = false,
   onStartService,
   onStopService,
   onFetchIp
@@ -27,22 +29,31 @@ export const TransferSection: React.FC<TransferSectionProps> = ({
       </div>
       
       <div className="connection-card-content">
+        {/* Indicateur de statut */}
+        <div className="connection-status-indicator">
+          <div className={`connection-status-dot ${isServiceActive ? 'active' : 'inactive'}`}></div>
+          <span className="connection-status-text">
+            {isStarting ? 'Démarrage en cours...' : 
+             isServiceActive ? 'Service actif' : 'Service inactif'}
+          </span>
+        </div>
+
         <div className="connection-btn-group">
           <button 
             onClick={onStartService} 
-            disabled={isServiceActive}
-            className={`connection-btn ${isServiceActive 
+            disabled={isServiceActive || isStarting}
+            className={`connection-btn ${(isServiceActive || isStarting)
               ? 'connection-btn--disabled' 
               : 'connection-btn--success'}`}
           >
             <PlayIcon />
-            Démarrer le service
+            {isStarting ? 'Démarrage...' : 'Démarrer le service'}
           </button>
           
           <button 
             onClick={onStopService} 
-            disabled={!isServiceActive}
-            className={`connection-btn ${!isServiceActive 
+            disabled={!isServiceActive || isStarting}
+            className={`connection-btn ${(!isServiceActive || isStarting)
               ? 'connection-btn--disabled' 
               : 'connection-btn--danger'}`}
           >
@@ -53,6 +64,7 @@ export const TransferSection: React.FC<TransferSectionProps> = ({
           <button 
             onClick={onFetchIp} 
             className="connection-btn connection-btn--primary"
+            disabled={isStarting}
           >
             <GlobeIcon />
             Récupérer l'IP
@@ -75,6 +87,16 @@ export const TransferSection: React.FC<TransferSectionProps> = ({
                 <span className="connection-info-value">{phoneIp}</span>
               </div>
             )}
+            
+            {/* Instructions pour l'utilisateur */}
+            <div className="connection-instructions">
+              <h4>Instructions :</h4>
+              <ol>
+                <li>Connectez votre téléphone au WiFi ci-dessus</li>
+                <li>Utilisez l'adresse <strong>{serverIp}:8080</strong> dans votre application</li>
+                <li>Commencez le transfert depuis votre téléphone</li>
+              </ol>
+            </div>
           </div>
         )}
         

@@ -41,6 +41,7 @@ function Connection() {
     currentTransfer,
     completedTransfers,
     connectedDevices,
+    isStarting,
     startService,
     stopService,
     fetchConnectedDevices
@@ -66,6 +67,7 @@ function Connection() {
             serverIp={serverIp}
             phoneIp={phoneIp}
             transferQrCode={transferQrCode}
+            isStarting={isStarting}
             onStartService={startService}
             onStopService={stopService}
             onFetchIp={fetchIpAddress}

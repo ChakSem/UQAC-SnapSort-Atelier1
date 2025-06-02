@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { exec } from 'child_process';
 import http from 'http';
 import { 
   startImageTransferService, 
@@ -10,12 +11,17 @@ import path from 'path';
 import fs from 'fs';
 import { isDev, cleanTempFolder, generateThumbnail } from './util.js';
 import { getPreloadPath, getScriptsPath } from './pathResolver.js';
+// Import depuis le nouveau service
 import connectionService from './connectionService.js';
 import store from "./store.js";
 import { getFolders } from './folderManager.js';
 import { runPipeline } from './python.js';
 
 let mainWindow: BrowserWindow | null = null;
+
+// Variables globales pour le service de transfert
+let imageTransferServer: http.Server | null = null;
+let transferServiceStatus = false;
 
 // Configuration de la fenêtre principale
 app.on('ready', () => {
@@ -40,7 +46,6 @@ app.on('ready', () => {
 
 // ========== Gestionnaires Python ==========
 
-// Exécution du script Python pour le tri d'images
 ipcMain.handle('run-python', async () => {
   const rootPath = store.get("directoryPath") as string;
   if (!rootPath) {
@@ -64,9 +69,6 @@ ipcMain.handle('run-python', async () => {
 
   try {
     console.log("Exécution du script Python...");
-    console.log("Chemin images non triées:", unsortedImagesPath);
-    console.log("Chemin albums:", albumsPath);
-    
     const output = await runPipeline({ 
       directory: unsortedImagesPath, 
       destination_directory: albumsPath 
@@ -80,17 +82,14 @@ ipcMain.handle('run-python', async () => {
 
 // ========== Gestionnaires Paramètres ==========
 
-// Récupération d'une valeur du store
 ipcMain.handle("get-setting", (_, key) => {
   return store.get(key);
 });
 
-// Sauvegarde d'une valeur dans le store
 ipcMain.handle("set-setting", (_, key, value) => {
   store.set(key, value);
 });
 
-// Sélection d'un dossier via l'explorateur
 ipcMain.handle("select-directory", async () => {
   const result = await dialog.showOpenDialog(mainWindow!, {
     properties: ["openDirectory"],
@@ -105,7 +104,6 @@ ipcMain.handle("select-directory", async () => {
 
 // ========== Gestionnaires Fichiers Média ==========
 
-// Récupération des fichiers média d'un dossier
 ipcMain.handle("get-media-files", async (_, directoryPath) => {
   const rootPath = store.get("directoryPath") as string;
   if (!rootPath) {
@@ -114,7 +112,6 @@ ipcMain.handle("get-media-files", async (_, directoryPath) => {
 
   const tempDirectoryPath = path.join(rootPath, "temp");
   
-  // Gestion du dossier temporaire
   if (fs.existsSync(tempDirectoryPath)) {
     cleanTempFolder(directoryPath, tempDirectoryPath);
   } else {
@@ -122,13 +119,11 @@ ipcMain.handle("get-media-files", async (_, directoryPath) => {
   }
 
   try {
-    // Lecture et filtrage des fichiers média
     const files = fs.readdirSync(directoryPath).filter(file => {
       const ext = path.extname(file).toLowerCase();
       return [".jpg", ".jpeg", ".png", ".gif", ".mp4", ".mov", ".avi"].includes(ext);
     });
 
-    // Génération des miniatures pour les vidéos
     const mediaFiles = await Promise.all(
       files.map(async file => {
         const filePath = path.join(directoryPath, file);
@@ -161,27 +156,22 @@ ipcMain.handle("get-media-files", async (_, directoryPath) => {
 
 // ========== Gestionnaires Connexion Hotspot ==========
 
-// Démarrage du hotspot WiFi
 ipcMain.handle("start-hotspot", async () => {
   try {
-    // Démarrage du hotspot
     const hotspotResult = await connectionService.startHotspot();
     
     if (hotspotResult.error) {
       return hotspotResult;
     }
 
-    // Attente pour la stabilisation du hotspot
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Récupération des informations WiFi
     const wifiCredentials = await connectionService.getWifiCredentials();
     
     if (!wifiCredentials.ssid || !wifiCredentials.password) {
       return { error: "Impossible de récupérer les informations du hotspot" };
     }
 
-    // Génération de la chaîne WiFi pour QR code
     const wifiString = connectionService.generateWifiQRString(
       wifiCredentials.ssid, 
       wifiCredentials.password, 
@@ -195,7 +185,6 @@ ipcMain.handle("start-hotspot", async () => {
   }
 });
 
-// Récupération de l'adresse IP du téléphone
 ipcMain.handle("get-ip", async () => {
   try {
     const ipAddress = await connectionService.getConnectedPhoneIP();
@@ -206,7 +195,6 @@ ipcMain.handle("get-ip", async () => {
   }
 });
 
-// Récupération des informations WiFi
 ipcMain.handle('get-wifi-info', async () => {
   try {
     const wifiCredentials = await connectionService.getWifiCredentials();
@@ -219,57 +207,104 @@ ipcMain.handle('get-wifi-info', async () => {
 
 // ========== Gestionnaires Service de Transfert ==========
 
-let imageTransferServer: http.Server | null = null;
-let transferServiceStatus = false;
+// Fonction pour forcer l'arrêt du serveur sur le port 8080
+const forceKillServerOnPort = async (port: number = 8080): Promise<void> => {
+  return new Promise((resolve) => {
+    // Sur Windows, utiliser netstat et taskkill
+    if (process.platform === 'win32') {
+      exec(`netstat -ano | findstr :${port}`, (error: any, stdout: any) => {
+        if (stdout) {
+          const lines = stdout.trim().split('\n');
+          const pids = new Set<string>();
+          
+          lines.forEach((line: string) => {
+            const parts = line.trim().split(/\s+/);
+            if (parts.length >= 5 && parts[1].includes(`:${port}`)) {
+              pids.add(parts[4]);
+            }
+          });
+          
+          if (pids.size > 0) {
+            pids.forEach(pid => {
+              exec(`taskkill /F /PID ${pid}`, (killError: any) => {
+                if (killError) {
+                  console.log(`Impossible de tuer le processus ${pid}`);
+                }
+              });
+            });
+          }
+        }
+        setTimeout(resolve, 1000); // Attendre 1 seconde
+      });
+    } else {
+      // Sur Unix/Linux/Mac
+      exec(`lsof -ti:${port}`, (error: any, stdout: any) => {
+        if (stdout) {
+          const pids = stdout.trim().split('\n');
+          pids.forEach((pid: string) => {
+            if (pid) {
+              exec(`kill -9 ${pid}`, (killError: any) => {
+                if (killError) {
+                  console.log(`Impossible de tuer le processus ${pid}`);
+                }
+              });
+            }
+          });
+        }
+        setTimeout(resolve, 1000);
+      });
+    }
+  });
+};
 
-// Démarrage du service de transfert d'images
 ipcMain.handle('start-image-transfer-service', async () => {
   try {
     if (transferServiceStatus) {
       return { 
         message: "Le service est déjà actif", 
         status: true,
-        serverIp: "déjà en cours"
+        serverIp: "192.168.137.1"
       };
     }
     
-    // Démarrage du service de transfert
+    // Forcer l'arrêt de tout processus utilisant le port 8080
+    await forceKillServerOnPort(8080);
+    
+    // Arrêter le serveur existant s'il y en a un
+    if (imageTransferServer) {
+      await stopImageTransferService(imageTransferServer);
+      imageTransferServer = null;
+    }
+    
+    // Attendre un délai supplémentaire pour s'assurer que le port est libéré
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
     const serviceInfo = await startImageTransferService();
     transferServiceStatus = true;
     
-    // Notification du démarrage du service
     mainWindow?.webContents.send('transfer:service-started', serviceInfo);
-    
-    // Configuration des écouteurs d'événements de transfert
     setupTransferEventListeners();
     
     console.log("Service de transfert démarré:", serviceInfo);
     return serviceInfo;
   } catch (error) {
     console.error("Erreur lors du démarrage du service de transfert:", error);
+    transferServiceStatus = false;
     return { error: `Erreur lors du démarrage: ${error}` };
   }
 });
 
-// Arrêt du service de transfert d'images
 ipcMain.handle('stop-image-transfer-service', async () => {
   try {
-    if (!transferServiceStatus) {
-      return { 
-        message: "Le service est déjà arrêté", 
-        status: false 
-      };
-    }
-    
-    // Arrêt du serveur
     if (imageTransferServer) {
       await stopImageTransferService(imageTransferServer);
       imageTransferServer = null;
     }
     
-    transferServiceStatus = false;
+    // Forcer l'arrêt des processus sur le port
+    await forceKillServerOnPort(8080);
     
-    // Notification d'arrêt du service
+    transferServiceStatus = false;
     mainWindow?.webContents.send('transfer:service-stopped');
     
     console.log("Service de transfert arrêté avec succès");
@@ -279,13 +314,15 @@ ipcMain.handle('stop-image-transfer-service', async () => {
     };
   } catch (error) {
     console.error("Erreur lors de l'arrêt du service:", error);
+    transferServiceStatus = false;
     return { error: `Erreur lors de l'arrêt: ${error}` };
   }
 });
 
-// Configuration des écouteurs d'événements de transfert
+// Configuration améliorée des écouteurs d'événements de transfert
 function setupTransferEventListeners() {
-  transferEvents.removeAllListeners(); // Nettoyage des anciens écouteurs
+  // Nettoyer les anciens écouteurs pour éviter les doublons
+  transferEvents.removeAllListeners();
   
   transferEvents.on('transfer:start', (info) => {
     console.log("Transfert démarré:", info.fileName);
@@ -293,6 +330,7 @@ function setupTransferEventListeners() {
   });
   
   transferEvents.on('transfer:progress', (info) => {
+    // Envoyer les mises à jour de progression
     mainWindow?.webContents.send('transfer:progress', info);
   });
   
@@ -307,7 +345,6 @@ function setupTransferEventListeners() {
   });
 }
 
-// Génération d'un QR code pour le transfert
 ipcMain.handle('generate-transfer-qrcode', (_, wifiString, serverIp) => {
   try {
     return generateTransferQRCode(wifiString, serverIp);
@@ -317,7 +354,6 @@ ipcMain.handle('generate-transfer-qrcode', (_, wifiString, serverIp) => {
   }
 });
 
-// Récupération du statut du service de transfert
 ipcMain.handle('get-transfer-service-status', () => {
   return { 
     active: transferServiceStatus,
@@ -325,11 +361,11 @@ ipcMain.handle('get-transfer-service-status', () => {
   };
 });
 
-// Récupération des appareils connectés
+// Gestionnaire temporaire pour les appareils connectés (à implémenter plus tard)
 ipcMain.handle('get-connected-devices', async () => {
   try {
-    // Cette fonction devrait être implémentée dans connectionService
-    // Pour l'instant, retourne un tableau vide
+    // Pour l'instant, retourner un tableau vide
+    // Cette fonction devra être implémentée pour scanner le réseau
     return [];
   } catch (error) {
     console.error("Erreur lors de la récupération des appareils:", error);
@@ -339,7 +375,6 @@ ipcMain.handle('get-connected-devices', async () => {
 
 // ========== Gestionnaires Dossiers ==========
 
-// Récupération de l'arborescence des dossiers
 ipcMain.handle("get-folders", async (_, rootPath) => {
   try {
     return getFolders(rootPath);
@@ -356,6 +391,7 @@ app.on('window-all-closed', async () => {
   if (transferServiceStatus && imageTransferServer) {
     try {
       await stopImageTransferService(imageTransferServer);
+      await forceKillServerOnPort(8080);
       console.log("Service de transfert arrêté lors de la fermeture");
     } catch (error) {
       console.error("Erreur lors de l'arrêt du service:", error);
@@ -369,7 +405,6 @@ app.on('window-all-closed', async () => {
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    // Recréer la fenêtre si nécessaire (macOS)
     app.emit('ready');
   }
 });

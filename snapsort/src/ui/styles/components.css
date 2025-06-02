@@ -1,6 +1,8 @@
 /* MainLayout.css */
 .app-container {
     display: flex;
+    /* faire en sorte que il soit scrollable */
+    overflow-y: auto;
   }
   
   .page-content {

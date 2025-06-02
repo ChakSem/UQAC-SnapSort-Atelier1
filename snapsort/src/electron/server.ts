@@ -3,14 +3,17 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { startHotspot, getSSID, getSecurityKey, extractSSID, extractUserSecurityKey } from './connectionService.js';
+import connectionService from './connectionService.js';
 import { networkInterfaces } from 'os';
 import store from './store.js';
 
 export const transferEvents = new EventEmitter();
 const SERVER_PORT = 8080;
 
-// Type pour les informations de transfert
+// Variables globales pour le serveur
+let currentServer: http.Server | null = null;
+
+// Types pour les informations de transfert
 interface TransferStartInfo {
   fileName: string;
   fileSize: number;
@@ -35,16 +38,17 @@ interface TransferErrorInfo {
   error: string;
 }
 
-export function startImageServer(savePath: string): Promise<string> {
+export function startImageServer(savePath: string): Promise<{ server: http.Server; port: number }> {
   return new Promise(async (resolve, reject) => {
     try {
+      // S'assurer que le dossier de sauvegarde existe
       if (!fs.existsSync(savePath)) {
         await fs.promises.mkdir(savePath, { recursive: true });
       }
 
       const server = http.createServer(async (req, res) => {
         try {
-          // Ajout d'un gestionnaire de CORS pour permettre les requêtes cross-origin
+          // Configuration CORS
           res.setHeader('Access-Control-Allow-Origin', '*');
           res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
           res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -57,175 +61,176 @@ export function startImageServer(savePath: string): Promise<string> {
           }
 
           if (req.method === 'POST') {
-            console.log('Réception d\'une requête POST');
+            console.log('=== DÉBUT DU TRANSFERT ===');
             
-            // Variables pour suivre l'état du transfert
+            // Variables pour le transfert
             let totalImages = 0;
-            let fileName = '';
-            let dateString = '';
-            let fileSize = 0;
-            let receivedBytes = 0;
             let currentImageIndex = 0;
-            let remainingData = Buffer.alloc(0);
+            let receivedData = Buffer.alloc(0);
             
-            // Fonction pour lire une ligne depuis le flux de données
-            const readLine = async (): Promise<string> => {
-              return new Promise((resolve) => {
-                const tryReadLine = () => {
-                  const lineEnd = remainingData.indexOf('\n');
-                  if (lineEnd >= 0) {
-                    const line = remainingData.slice(0, lineEnd).toString().trim();
-                    remainingData = remainingData.slice(lineEnd + 1);
-                    resolve(line);
-                    return true;
-                  }
-                  return false;
-                };
-                
-                if (tryReadLine()) return;
-                
-                const dataHandler = (chunk: Buffer) => {
-                  remainingData = Buffer.concat([remainingData, chunk]);
-                  if (tryReadLine()) {
-                    req.removeListener('data', dataHandler);
-                  }
-                };
-                
-                req.on('data', dataHandler);
-              });
+            // Fonction pour extraire une ligne du buffer
+            const extractLine = (): string | null => {
+              const lineEndIndex = receivedData.indexOf('\n');
+              if (lineEndIndex === -1) return null;
+              
+              const line = receivedData.slice(0, lineEndIndex).toString().trim();
+              receivedData = receivedData.slice(lineEndIndex + 1);
+              return line;
             };
-            
-            // Lire le nombre total d'images (première ligne envoyée par le client Android)
-            totalImages = parseInt(await readLine(), 10);
-            console.log(`Nombre total d'images à recevoir: ${totalImages}`);
-            
-            // Traiter chaque image
-            while (currentImageIndex < totalImages) {
+
+            // Fonction pour extraire des données d'une taille spécifique
+            const extractData = (size: number): Buffer | null => {
+              if (receivedData.length < size) return null;
+              
+              const data = receivedData.slice(0, size);
+              receivedData = receivedData.slice(size);
+              return data;
+            };
+
+            // Collecte des données
+            req.on('data', (chunk: Buffer) => {
+              receivedData = Buffer.concat([receivedData, chunk]);
+            });
+
+            req.on('end', async () => {
               try {
-                // Lire les informations de l'image
-                fileName = await readLine();
-                dateString = await readLine();
-                fileSize = parseInt(await readLine(), 10);
+                console.log(`Données totales reçues: ${receivedData.length} bytes`);
+
+                // Lire le nombre total d'images
+                const totalImagesLine = extractLine();
+                if (!totalImagesLine) {
+                  throw new Error('Impossible de lire le nombre total d\'images');
+                }
                 
-                console.log(`Réception de l'image ${currentImageIndex + 1}/${totalImages}: ${fileName}, taille: ${fileSize} octets`);
-                
-                // Émettre l'événement de début de transfert
-                const startInfo: TransferStartInfo = {
-                  fileName,
-                  fileSize,
-                  index: currentImageIndex + 1,
-                  total: totalImages
-                };
-                transferEvents.emit('transfer:start', startInfo);
-                
-                // Créer le chemin complet du fichier directement dans le dossier de sauvegarde principal
-                const filePath = path.join(savePath, fileName);
-                const fileStream = fs.createWriteStream(filePath);
-                
-                // Réinitialiser le compteur de bytes reçus
-                receivedBytes = 0;
-                
-                // Si des données sont déjà dans le buffer, les utiliser d'abord
-                if (remainingData.length > 0) {
-                  const dataToWrite = remainingData.length > fileSize ? 
-                    remainingData.slice(0, fileSize) : 
-                    remainingData;
-                  
-                  fileStream.write(dataToWrite);
-                  receivedBytes += dataToWrite.length;
-                  
-                  // Mettre à jour la progression
-                  const progressInfo: TransferProgressInfo = {
-                    fileName,
-                    progress: receivedBytes / fileSize,
-                    receivedBytes,
-                    totalBytes: fileSize
-                  };
-                  transferEvents.emit('transfer:progress', progressInfo);
-                  
-                  // S'il reste des données après le fichier, les conserver
-                  if (remainingData.length > fileSize) {
-                    remainingData = remainingData.slice(fileSize);
-                  } else {
-                    remainingData = Buffer.alloc(0);
+                totalImages = parseInt(totalImagesLine, 10);
+                console.log(`Nombre total d'images: ${totalImages}`);
+
+                // Traitement de chaque image
+                for (let i = 0; i < totalImages; i++) {
+                  try {
+                    // Attendre que les informations de l'image soient disponibles
+                    let fileName: string | null = null;
+                    let dateString: string | null = null;
+                    let fileSize: number = 0;
+
+                    // Attendre les métadonnées de l'image
+                    while (!fileName || !dateString || fileSize === 0) {
+                      if (!fileName) fileName = extractLine();
+                      if (fileName && !dateString) dateString = extractLine();
+                      if (fileName && dateString && fileSize === 0) {
+                        const fileSizeLine = extractLine();
+                        if (fileSizeLine) {
+                          fileSize = parseInt(fileSizeLine, 10);
+                        }
+                      }
+                      
+                      // Si on n'a pas toutes les infos, attendre un peu
+                      if (!fileName || !dateString || fileSize === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 10));
+                      }
+                    }
+
+                    console.log(`\n--- Image ${i + 1}/${totalImages} ---`);
+                    console.log(`Nom: ${fileName}`);
+                    console.log(`Date: ${dateString}`);
+                    console.log(`Taille: ${fileSize} bytes`);
+
+                    // Émettre l'événement de début de transfert
+                    const startInfo: TransferStartInfo = {
+                      fileName,
+                      fileSize,
+                      index: i + 1,
+                      total: totalImages
+                    };
+                    transferEvents.emit('transfer:start', startInfo);
+
+                    // Attendre que toutes les données de l'image soient disponibles
+                    while (receivedData.length < fileSize) {
+                      await new Promise(resolve => setTimeout(resolve, 10));
+                    }
+
+                    // Extraire les données de l'image
+                    const imageData = extractData(fileSize);
+                    if (!imageData) {
+                      throw new Error(`Impossible d'extraire les données pour ${fileName}`);
+                    }
+
+                    // Créer le chemin du fichier
+                    const filePath = path.join(savePath, fileName);
+                    
+                    // Écrire le fichier
+                    await fs.promises.writeFile(filePath, imageData);
+
+                    // Émettre les événements de progression et de fin
+                    const progressInfo: TransferProgressInfo = {
+                      fileName,
+                      progress: 1.0,
+                      receivedBytes: fileSize,
+                      totalBytes: fileSize
+                    };
+                    transferEvents.emit('transfer:progress', progressInfo);
+
+                    const completeInfo: TransferCompleteInfo = {
+                      fileName,
+                      filePath,
+                      size: fileSize
+                    };
+                    transferEvents.emit('transfer:complete', completeInfo);
+
+                    console.log(`✓ Image ${fileName} sauvegardée avec succès`);
+
+                  } catch (imageError) {
+                    console.error(`Erreur lors du traitement de l'image ${i + 1}:`, imageError);
+                    const errorInfo: TransferErrorInfo = {
+                      error: `Erreur lors du traitement de l'image ${i + 1}: ${imageError instanceof Error ? imageError.message : 'Erreur inconnue'}`
+                    };
+                    transferEvents.emit('transfer:error', errorInfo);
                   }
                 }
-                
-                // Continuer à lire les données jusqu'à ce que le fichier soit complet
-                if (receivedBytes < fileSize) {
-                  await new Promise<void>((resolveFile) => {
-                    const dataHandler = (chunk: Buffer) => {
-                      const remainingBytes = fileSize - receivedBytes;
-                      const bytesToWrite = Math.min(chunk.length, remainingBytes);
-                      
-                      if (bytesToWrite > 0) {
-                        const dataToWrite = chunk.slice(0, bytesToWrite);
-                        fileStream.write(dataToWrite);
-                        receivedBytes += bytesToWrite;
-                        
-                        // Mettre à jour la progression
-                        const progressInfo: TransferProgressInfo = {
-                          fileName,
-                          progress: receivedBytes / fileSize,
-                          receivedBytes,
-                          totalBytes: fileSize
-                        };
-                        transferEvents.emit('transfer:progress', progressInfo);
-                      }
-                      
-                      // Si on a reçu tous les bytes pour ce fichier
-                      if (receivedBytes >= fileSize) {
-                        req.removeListener('data', dataHandler);
-                        
-                        // S'il y a des données supplémentaires, les conserver pour le prochain fichier
-                        if (bytesToWrite < chunk.length) {
-                          remainingData = chunk.slice(bytesToWrite);
-                        }
-                        
-                        resolveFile();
-                      }
-                    };
-                    
-                    req.on('data', dataHandler);
-                  });
-                }
-                
-                // Fermer le stream de fichier
-                fileStream.end();
-                
-                // Émettre l'événement de fin de transfert pour ce fichier
-                const completeInfo: TransferCompleteInfo = {
-                  fileName,
-                  filePath,
-                  size: fileSize
-                };
-                transferEvents.emit('transfer:complete', completeInfo);
-                
-                currentImageIndex++;
-                
-              } catch (fileError) {
-                console.error(`Erreur lors du traitement de l'image ${currentImageIndex + 1}:`, fileError);
+
+                console.log('\n=== TRANSFERT TERMINÉ ===');
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ 
+                  status: 'success', 
+                  message: `${totalImages} images transférées avec succès`,
+                  totalImages: totalImages
+                }));
+
+              } catch (error) {
+                console.error('Erreur lors du traitement des données:', error);
                 const errorInfo: TransferErrorInfo = {
-                  error: `Erreur lors du traitement de l'image: ${fileError instanceof Error ? fileError.message : 'Erreur inconnue'}`
+                  error: `Erreur lors du traitement: ${error instanceof Error ? error.message : 'Erreur inconnue'}`
                 };
                 transferEvents.emit('transfer:error', errorInfo);
-                currentImageIndex++;
+                
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ 
+                  status: 'error', 
+                  message: 'Erreur lors du traitement des données' 
+                }));
               }
-            }
-            
-            // Tous les fichiers ont été traités
-            res.statusCode = 200;
-            res.end(JSON.stringify({ status: 'success', message: 'Transfert terminé avec succès' }));
-            
+            });
+
+            req.on('error', (error) => {
+              console.error('Erreur de requête:', error);
+              const errorInfo: TransferErrorInfo = {
+                error: `Erreur de requête: ${error.message}`
+              };
+              transferEvents.emit('transfer:error', errorInfo);
+            });
+
           } else if (req.method === 'GET') {
-            // Amélioré pour retourner des informations utiles au client
+            // Point de terminaison de statut
             const statusInfo = {
               status: 'active',
               version: '1.0.0',
               serverTime: new Date().toISOString(),
+              port: SERVER_PORT,
               endpoints: {
-                post: '/upload',
-                get: '/status'
+                upload: 'POST /',
+                status: 'GET /'
               }
             };
             
@@ -235,36 +240,44 @@ export function startImageServer(savePath: string): Promise<string> {
           } else {
             // Méthode non supportée
             res.statusCode = 405;
+            res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ status: 'error', message: 'Méthode non supportée' }));
           }
         } catch (error) {
-          console.error('Erreur:', error);
+          console.error('Erreur dans le gestionnaire de requête:', error);
           const errorInfo: TransferErrorInfo = {
             error: `Erreur serveur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`
           };
           transferEvents.emit('transfer:error', errorInfo);
-          res.statusCode = 500;
-          res.end(JSON.stringify({ status: 'error', message: 'Erreur serveur' }));
+          
+          if (!res.headersSent) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ status: 'error', message: 'Erreur serveur interne' }));
+          }
         }
       });
 
-      // Amélioration de la gestion d'erreur du serveur
-      server.on('error', (error) => {
+      // Gestion des erreurs du serveur
+      server.on('error', (error: NodeJS.ErrnoException) => {
         console.error('Erreur serveur:', error);
-        const errorInfo: TransferErrorInfo = {
-          error: `Erreur serveur: ${error.message}`
-        };
-        transferEvents.emit('transfer:error', errorInfo);
-        reject(`Erreur serveur: ${error.message}`);
+        
+        if (error.code === 'EADDRINUSE') {
+          reject(new Error(`Le port ${SERVER_PORT} est déjà utilisé. Veuillez arrêter le service existant ou changer de port.`));
+        } else {
+          reject(new Error(`Erreur serveur: ${error.message}`));
+        }
       });
 
+      // Démarrer le serveur
       server.listen(SERVER_PORT, () => {
-        console.log(`Serveur démarré sur le port ${SERVER_PORT}`);
-        resolve(`Serveur démarré sur le port ${SERVER_PORT}`);
+        console.log(`🚀 Serveur de transfert démarré sur le port ${SERVER_PORT}`);
+        currentServer = server;
+        resolve({ server, port: SERVER_PORT });
       });
 
     } catch (error) {
-      reject(`Erreur lors du démarrage du serveur: ${error}`);
+      reject(new Error(`Erreur lors de l'initialisation du serveur: ${error}`));
     }
   });
 }
@@ -273,119 +286,110 @@ export function getLocalIpAddress(): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
       const nets = networkInterfaces();
+      
+      // Priorité à l'adresse IP du hotspot Windows (192.168.137.x)
       for (const name of Object.keys(nets)) {
         const net = nets[name];
         if (net) {
           for (const addr of net) {
-            // Priorité aux adresses qui commencent par 192.168.137.x (point d'accès Windows)
             if (addr.family === 'IPv4' && !addr.internal && addr.address.startsWith('192.168.137.')) {
+              console.log(`IP du hotspot trouvée: ${addr.address}`);
               return resolve(addr.address);
             }
           }
         }
       }
       
-      // Si aucune adresse de point d'accès trouvée, chercher une adresse IP locale
+      // Fallback vers toute adresse IP locale
       for (const name of Object.keys(nets)) {
         const net = nets[name];
         if (net) {
           for (const addr of net) {
             if (addr.family === 'IPv4' && !addr.internal) {
+              console.log(`IP locale trouvée: ${addr.address}`);
               return resolve(addr.address);
             }
           }
         }
       }
       
-      reject('Aucune adresse IP trouvée');
+      // Utiliser l'IP par défaut du hotspot Windows
+      console.log('Utilisation de l\'IP par défaut du hotspot Windows');
+      resolve('192.168.137.1');
+      
     } catch (error) {
-      reject(`Erreur lors de la récupération de l'adresse IP: ${error}`);
+      console.error('Erreur lors de la récupération de l\'IP:', error);
+      resolve('192.168.137.1'); // IP par défaut
     }
   });
 }
 
 export async function startImageTransferService() {
   try {
-    // Start hotspot first
-    await startHotspot();
-    
-    // Wait a moment for the hotspot to initialize
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Get WiFi information with error handling
-    let ssid = 'Unknown';
-    let securityKey = 'Unknown';
-    
-    try {
-      const ssidOutput = await getSSID();
-      ssid = extractSSID(ssidOutput) || 'Unknown';
-    } catch (error) {
-      console.log('Error getting SSID, using default');
-    }
-    
-    try {
-      const keyOutput = await getSecurityKey();
-      securityKey = extractUserSecurityKey(keyOutput) || 'Unknown';
-    } catch (error) {
-      console.log('Error getting security key, using default');
-    }
-    
-    // Prepare save path
+    console.log('🔄 Démarrage du service de transfert d\'images...');
+
+    // Préparer le chemin de sauvegarde
     const rootPath = store.get("directoryPath") as string;
-    if (!rootPath) return { error: "No root directory path set" };
-    
-    let savePath = path.join(rootPath, "unsorted_images");
-
-    // Nettoyer le chemin pour éviter les caractères non valides
-    savePath = path.normalize(savePath).replace(/\0/g, ""); 
-
-    // Vérifier que le chemin est valide
-    if (!savePath || typeof savePath !== "string" || savePath.includes('\x00')) {
-      throw new Error(`Invalid save path: ${savePath}`);
+    if (!rootPath) {
+      throw new Error("Aucun chemin de dossier racine défini");
     }
+    
+    const savePath = path.join(rootPath, "unsorted_images");
+    console.log(`📁 Dossier de sauvegarde: ${savePath}`);
 
-    // Si le dossier n'existe pas, le créer
+    // Vérifier et créer le dossier si nécessaire
     if (!fs.existsSync(savePath)) {
-      fs.mkdirSync(savePath, { recursive: true });
+      await fs.promises.mkdir(savePath, { recursive: true });
+      console.log('📁 Dossier de sauvegarde créé');
     }
     
-    // Start image server
-    await startImageServer(savePath);
+    // Démarrer le serveur d'images
+    const { server } = await startImageServer(savePath);
+    currentServer = server;
     
-    // Get server IP
+    // Obtenir l'IP du serveur
     const serverIp = await getLocalIpAddress();
+    console.log(`🌐 Serveur accessible à l'adresse: ${serverIp}:${SERVER_PORT}`);
     
-    // Prepare WiFi connection string
-    const wifiString = `WIFI:S:${ssid};T:WPA;P:${securityKey};H:false;;`;
-    
-    return { wifiString, serverIp, savePath, port: SERVER_PORT };
+    return { 
+      serverIp, 
+      savePath, 
+      port: SERVER_PORT,
+      message: 'Service de transfert démarré avec succès'
+    };
   } catch (error) {
-    console.error('Erreur lors du démarrage du service:', error);
+    console.error('❌ Erreur lors du démarrage du service:', error);
     throw error;
   }
 }
 
-// Cette fonction ajoute les informations du serveur au QR code
 export function generateTransferQRCode(wifiString: string, serverIp: string): string {
-  return `${wifiString}IP:${serverIp};PORT:${SERVER_PORT};`;
+  const transferInfo = `${wifiString}IP:${serverIp};PORT:${SERVER_PORT};`;
+  console.log(`📱 QR Code généré: ${transferInfo}`);
+  return transferInfo;
 }
 
-// Nouvelle fonction pour arrêter le serveur si nécessaire
-export function stopImageTransferService(server: http.Server): Promise<void> {
+export function stopImageTransferService(server?: http.Server): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (!server) {
+    const serverToStop = server || currentServer;
+    
+    if (!serverToStop) {
+      console.log('✅ Aucun serveur à arrêter');
       resolve();
       return;
     }
     
-    server.close((err) => {
+    console.log('🔄 Arrêt du serveur de transfert...');
+    
+    serverToStop.close((err) => {
       if (err) {
-        console.error('Erreur lors de arrêt du serveur:', err);
+        console.error('❌ Erreur lors de l\'arrêt du serveur:', err);
         reject(err);
         return;
       }
       
-      console.log('Serveur arrêté avec succès');
+      currentServer = null;
+      console.log('✅ Serveur de transfert arrêté avec succès');
       resolve();
     });
   });
