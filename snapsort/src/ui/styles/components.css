@@ -1,14 +1,19 @@
 /* MainLayout.css */
 .app-container {
-    display: flex;
-    /* faire en sorte que il soit scrollable */
-    overflow-y: auto;
-  }
-  
-  .page-content {
-    flex: 2;
-    background-color: var(--secondary-bg);
-  }
+  display: flex;
+  height: 100vh; /* Permet de prendre toute la hauteur de l'écran */
+  overflow: hidden; /* Empêche les scrolls involontaires sur le container global */
+}
+
+.page-content {
+  flex: 1; /* Utilise tout l'espace restant à côté de la sidebar */
+  background-color: var(--secondary-bg);
+  overflow-y: auto; /* Active le scroll vertical uniquement si nécessaire */
+  padding: 1rem; /* Ajoute un peu d’espace intérieur */
+  height: 100vh; /* Assure que le contenu peut défiler dans tout l'espace disponible */
+  box-sizing: border-box; /* Inclut le padding dans le calcul de la hauteur */
+  scroll-behavior: smooth; /* Scroll fluide (optionnel mais agréable) */
+}
 
 /* Home.css */
 .home {
