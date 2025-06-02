@@ -13,6 +13,8 @@ import { isDev, cleanTempFolder, generateThumbnail } from './util.js';
 import { getPreloadPath, getScriptsPath } from './pathResolver.js';
 // Import depuis le nouveau service
 import connectionService from './connectionService.js';
+// Import du scanner réseau
+import { getConnectedDevices, getNetworkStats } from './networkScanner.js';
 import store from "./store.js";
 import { getFolders } from './folderManager.js';
 import { runPipeline } from './python.js';
@@ -205,6 +207,37 @@ ipcMain.handle('get-wifi-info', async () => {
   }
 });
 
+// ========== Gestionnaires Réseau et Appareils Connectés ==========
+
+// Récupération des appareils connectés au hotspot
+ipcMain.handle('get-connected-devices', async () => {
+  try {
+    console.log('📱 Récupération des appareils connectés...');
+    const devices = await getConnectedDevices();
+    console.log(`📱 ${devices.length} appareil(s) connecté(s) trouvé(s)`);
+    return devices;
+  } catch (error) {
+    console.error("Erreur lors de la récupération des appareils:", error);
+    return [];
+  }
+});
+
+// Récupération des statistiques réseau
+ipcMain.handle('get-network-stats', async () => {
+  try {
+    const stats = await getNetworkStats();
+    return stats;
+  } catch (error) {
+    console.error("Erreur lors de la récupération des stats réseau:", error);
+    return {
+      hotspotActive: false,
+      hotspotIP: null,
+      connectedDevices: 0,
+      lastScanTime: new Date()
+    };
+  }
+});
+
 // ========== Gestionnaires Service de Transfert ==========
 
 // Fonction pour forcer l'arrêt du serveur sur le port 8080
@@ -359,18 +392,6 @@ ipcMain.handle('get-transfer-service-status', () => {
     active: transferServiceStatus,
     timestamp: new Date().toISOString()
   };
-});
-
-// Gestionnaire temporaire pour les appareils connectés (à implémenter plus tard)
-ipcMain.handle('get-connected-devices', async () => {
-  try {
-    // Pour l'instant, retourner un tableau vide
-    // Cette fonction devra être implémentée pour scanner le réseau
-    return [];
-  } catch (error) {
-    console.error("Erreur lors de la récupération des appareils:", error);
-    return [];
-  }
 });
 
 // ========== Gestionnaires Dossiers ==========

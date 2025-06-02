@@ -14,6 +14,8 @@ interface ConnectedDevice {
   ip: string;
   mac: string;
   name: string;
+  vendor?: string;
+  status: 'active' | 'inactive';
 }
 
 export const useTransferService = () => {
@@ -50,6 +52,9 @@ export const useTransferService = () => {
       setIsServiceActive(true);
       setServerIp(result.serverIp);
       console.log("Service de transfert démarré:", result.serverIp);
+      
+      // Démarrer immédiatement un scan des appareils
+      await fetchConnectedDevices();
     } catch (error) {
       console.error("Erreur lors du démarrage du service de transfert:", error);
     } finally {
@@ -65,28 +70,57 @@ export const useTransferService = () => {
       setTransferQrCode("");
       setCurrentTransfer(null);
       setServerIp("");
+      setConnectedDevices([]); // Vider la liste des appareils
       console.log("Service de transfert arrêté:", result);
     } catch (error) {
       console.error("Erreur lors de l'arrêt du service de transfert:", error);
     }
   };
 
-  // Récupère la liste des appareils connectés (fonction protégée)
+  // Récupère la liste des appareils connectés
   const fetchConnectedDevices = async () => {
     try {
       // Vérifier si la fonction existe avant de l'appeler
       if (typeof (window as any).electron?.getConnectedDevices === 'function') {
+        console.log('📱 Scan des appareils connectés...');
         const devices = await (window as any).electron.getConnectedDevices();
-        setConnectedDevices(Array.isArray(devices) ? devices : []);
+        
+        if (Array.isArray(devices)) {
+          setConnectedDevices(devices);
+          console.log(`📱 ${devices.length} appareil(s) connecté(s) trouvé(s)`);
+          
+          // Afficher les détails des appareils trouvés
+          if (devices.length > 0) {
+            devices.forEach((device, index) => {
+              console.log(`📱 Appareil ${index + 1}: ${device.name} (${device.ip}) - ${device.vendor || 'Fabricant inconnu'}`);
+            });
+          }
+        } else {
+          console.log("📱 Format de données incorrect reçu du scanner");
+          setConnectedDevices([]);
+        }
       } else {
-        // Fonction non implémentée - on utilise un mock temporaire
-        console.log("Fonction getConnectedDevices non implémentée");
+        console.log("⚠️ Fonction getConnectedDevices non disponible");
         setConnectedDevices([]);
       }
     } catch (error) {
-      console.error("Erreur lors de la récupération des appareils connectés:", error);
+      console.error("❌ Erreur lors de la récupération des appareils connectés:", error);
       setConnectedDevices([]);
     }
+  };
+
+  // Récupère les statistiques réseau
+  const fetchNetworkStats = async () => {
+    try {
+      if (typeof (window as any).electron?.getNetworkStats === 'function') {
+        const stats = await (window as any).electron.getNetworkStats();
+        console.log('📊 Statistiques réseau:', stats);
+        return stats;
+      }
+    } catch (error) {
+      console.error("Erreur lors de la récupération des stats réseau:", error);
+    }
+    return null;
   };
 
   // Configuration des écouteurs d'événements
@@ -96,15 +130,24 @@ export const useTransferService = () => {
       try {
         const status = await (window as any).electron.getTransferServiceStatus();
         setIsServiceActive(status.active);
+        
         if (status.active) {
           // Si le service est actif, récupérer l'IP du serveur
           try {
-            const ipResult = await (window as any).electron.getIpAdress();
+            // Essayer d'abord de récupérer l'IP réelle
+            const ipResult = await (window as any).electron.getIpAdress?.();
             if (ipResult) {
-              setServerIp("192.168.137.1"); // IP par défaut du hotspot Windows
+              setServerIp(ipResult);
+            } else {
+              // Utiliser l'IP par défaut du hotspot Windows
+              setServerIp("192.168.137.1");
             }
+            
+            // Scanner les appareils connectés si le service est déjà actif
+            await fetchConnectedDevices();
           } catch (error) {
-            console.log("Impossible de récupérer l'IP du serveur");
+            console.log("Impossible de récupérer l'IP du serveur, utilisation de l'IP par défaut");
+            setServerIp("192.168.137.1");
           }
         }
       } catch (error) {
@@ -124,7 +167,7 @@ export const useTransferService = () => {
       }
 
       const unsubscribeStart = electron.on('transfer:start', (info: TransferInfo) => {
-        console.log("Transfert démarré:", info);
+        console.log("🚀 Transfert démarré:", info.fileName);
         setCurrentTransfer({
           fileName: info.fileName,
           progress: 0,
@@ -136,20 +179,34 @@ export const useTransferService = () => {
       });
       
       const unsubscribeProgress = electron.on('transfer:progress', (info: TransferInfo) => {
-        setCurrentTransfer(prevTransfer => ({
-          ...prevTransfer,
-          ...info
-        }));
+        setCurrentTransfer(prevTransfer => {
+          if (!prevTransfer) return null;
+          
+          const updatedTransfer = {
+            ...prevTransfer,
+            ...info
+          };
+          
+          // Log de progression uniquement pour les étapes importantes
+          if (info.progress && (info.progress === 1.0 || info.progress % 0.25 === 0)) {
+            console.log(`📈 Progression ${info.fileName}: ${(info.progress * 100).toFixed(1)}%`);
+          }
+          
+          return updatedTransfer;
+        });
       });
       
       const unsubscribeComplete = electron.on('transfer:complete', (info: { fileName: string }) => {
-        console.log("Transfert terminé:", info);
+        console.log("✅ Transfert terminé:", info.fileName);
         setCompletedTransfers(prev => [...prev, info.fileName]);
         setCurrentTransfer(null);
+        
+        // Optionnel: rescanner les appareils après un transfert
+        // setTimeout(fetchConnectedDevices, 2000);
       });
       
       const unsubscribeError = electron.on('transfer:error', (info: { error: string }) => {
-        console.error("Erreur de transfert:", info);
+        console.error("❌ Erreur de transfert:", info.error);
         setCurrentTransfer(null);
       });
       
@@ -175,14 +232,29 @@ export const useTransferService = () => {
   // Récupération périodique des appareils connectés (uniquement si service actif)
   useEffect(() => {
     if (isServiceActive) {
+      // Scan initial
       fetchConnectedDevices();
       
-      // Réduire la fréquence pour éviter le spam d'erreurs
-      const interval = setInterval(fetchConnectedDevices, 10000); // 10 secondes au lieu de 5
+      // Scan périodique toutes les 15 secondes pour éviter la surcharge
+      const interval = setInterval(() => {
+        fetchConnectedDevices();
+      }, 15000);
       
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+      };
+    } else {
+      // Vider la liste si le service n'est pas actif
+      setConnectedDevices([]);
     }
   }, [isServiceActive]);
+
+  // Fonction pour forcer un refresh manuel des appareils
+  const refreshConnectedDevices = async () => {
+    if (isServiceActive) {
+      await fetchConnectedDevices();
+    }
+  };
 
   return {
     isServiceActive,
@@ -194,6 +266,7 @@ export const useTransferService = () => {
     isStarting,
     startService,
     stopService,
-    fetchConnectedDevices
+    fetchConnectedDevices: refreshConnectedDevices,
+    fetchNetworkStats
   };
 };
