@@ -3,7 +3,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { EventEmitter } from 'events';
-import { startHotspot, getSSID, getSecurityKey, extractSSID, extractUserSecurityKey } from './connexion.js';
+import { startHotspot, getSSID, getSecurityKey, extractSSID, extractUserSecurityKey } from './connectionService.js';
 import { networkInterfaces } from 'os';
 import store from './store.js';
 

@@ -1,17 +1,23 @@
-import {app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import http from 'http';
-import { startImageTransferService, stopImageTransferService, generateTransferQRCode, transferEvents } from './server.js';
+import { 
+  startImageTransferService, 
+  stopImageTransferService, 
+  generateTransferQRCode, 
+  transferEvents 
+} from './server.js';
 import path from 'path';
 import fs from 'fs';
 import { isDev, cleanTempFolder, generateThumbnail } from './util.js';
 import { getPreloadPath, getScriptsPath } from './pathResolver.js';
-import { startHotspot, getWifiInfo, extractWifiInfo, getPhoneIpAddress, extractIpAddress } from './connexion.js';
+import connectionService from './connectionService.js';
 import store from "./store.js";
 import { getFolders } from './folderManager.js';
 import { runPipeline } from './python.js';
 
 let mainWindow: BrowserWindow | null = null;
 
+// Configuration de la fenêtre principale
 app.on('ready', () => {
   mainWindow = new BrowserWindow({
     width: 1340,
@@ -26,68 +32,65 @@ app.on('ready', () => {
 
   if (isDev()) {
     mainWindow.loadURL('http://localhost:5173');
-  }
-  else {
-    mainWindow.loadFile(path.join(app.getAppPath(), '/dist-react/index.html'));
-  }
-
-  if (isDev()) {
     mainWindow.webContents.openDevTools();
+  } else {
+    mainWindow.loadFile(path.join(app.getAppPath(), '/dist-react/index.html'));
   }
 });
 
-// Execute Python Script Handler
+// ========== Gestionnaires Python ==========
+
+// Exécution du script Python pour le tri d'images
 ipcMain.handle('run-python', async () => {
-
-  // Récupérer le chemin du dossier principal
   const rootPath = store.get("directoryPath") as string;
-  if (!rootPath) return { error: "No root directory path set" };
-
-  const unsortedImagesPath = path.join(rootPath, "unsorted_images");
-  // Si le dossier n'existe pas, retourner "no images to sort"
-  if (!fs.existsSync(unsortedImagesPath)) {
-    return unsortedImagesPath;
+  if (!rootPath) {
+    return { error: "No root directory path set" };
   }
 
-  // Vérifier que le dossier "albums" existe
+  const unsortedImagesPath = path.join(rootPath, "unsorted_images");
+  if (!fs.existsSync(unsortedImagesPath)) {
+    return { error: "Dossier unsorted_images non trouvé" };
+  }
+
   const albumsPath = path.join(rootPath, 'albums');
   if (!fs.existsSync(albumsPath)) {
-    // Si le dossier n'existe pas, le créer
     fs.mkdirSync(albumsPath, { recursive: true });
   }
 
-  // Vérifier que le script Python existe
   const pythonScriptPath = getScriptsPath('LLM_pipeline.py');
   if (!fs.existsSync(pythonScriptPath)) {
-    return { error: "The Python script does not exist" };
+    return { error: "Le script Python n'existe pas" };
   }
 
-  // Exécuter le script Python
-  console.log("Running Python script...");
-  console.log("unsortedImagesPath:", unsortedImagesPath);
-  console.log("albumsPath:", albumsPath);
   try {
-    const output = await runPipeline({ directory: unsortedImagesPath, destination_directory: albumsPath });
+    console.log("Exécution du script Python...");
+    console.log("Chemin images non triées:", unsortedImagesPath);
+    console.log("Chemin albums:", albumsPath);
+    
+    const output = await runPipeline({ 
+      directory: unsortedImagesPath, 
+      destination_directory: albumsPath 
+    });
     return { output };
   } catch (error) {
-    console.error("Error running Python script:", error);
-    return { error: "Error running Python script" };
+    console.error("Erreur lors de l'exécution du script Python:", error);
+    return { error: "Erreur lors de l'exécution du script Python" };
   }
 });
 
-// Settings Handler
+// ========== Gestionnaires Paramètres ==========
 
-// Récupérer une valeur du store
+// Récupération d'une valeur du store
 ipcMain.handle("get-setting", (_, key) => {
   return store.get(key);
 });
 
-// Enregistrer une valeur dans le store
+// Sauvegarde d'une valeur dans le store
 ipcMain.handle("set-setting", (_, key, value) => {
   store.set(key, value);
 });
 
-// Ouvrir un explorateur pour sélectionner un dossier
+// Sélection d'un dossier via l'explorateur
 ipcMain.handle("select-directory", async () => {
   const result = await dialog.showOpenDialog(mainWindow!, {
     properties: ["openDirectory"],
@@ -100,34 +103,32 @@ ipcMain.handle("select-directory", async () => {
   return null;
 });
 
-// Unsorted Images Handler
+// ========== Gestionnaires Fichiers Média ==========
 
-// Fonction principale pour récupérer les fichiers média
+// Récupération des fichiers média d'un dossier
 ipcMain.handle("get-media-files", async (_, directoryPath) => {
-
-  // Deal with temp directory
   const rootPath = store.get("directoryPath") as string;
-  if (!rootPath) return { error: "No root directory path set" };
+  if (!rootPath) {
+    return { error: "Aucun chemin de dossier racine défini" };
+  }
 
   const tempDirectoryPath = path.join(rootPath, "temp");
+  
+  // Gestion du dossier temporaire
   if (fs.existsSync(tempDirectoryPath)) {
-    // Si le dossier existe, on le nettoie
     cleanTempFolder(directoryPath, tempDirectoryPath);
-  }
-  else {
-    // Sinon, on le crée
+  } else {
     fs.mkdirSync(tempDirectoryPath, { recursive: true });
   }
 
-
   try {
-    // Lire le contenu du dossier demandé
+    // Lecture et filtrage des fichiers média
     const files = fs.readdirSync(directoryPath).filter(file => {
       const ext = path.extname(file).toLowerCase();
       return [".jpg", ".jpeg", ".png", ".gif", ".mp4", ".mov", ".avi"].includes(ext);
     });
 
-    // Si les fichiers sont des vidéos, on génère une miniature que l'on stocke dans le dossier temp
+    // Génération des miniatures pour les vidéos
     const mediaFiles = await Promise.all(
       files.map(async file => {
         const filePath = path.join(directoryPath, file);
@@ -154,141 +155,231 @@ ipcMain.handle("get-media-files", async (_, directoryPath) => {
 
     return { directoryPath: directoryPath, files: mediaFiles };
   } catch (error) {
-    return { error: `Failed to read directory: ${error}` };
+    return { error: `Échec de lecture du dossier: ${error}` };
   }
 });
 
-// Connexion to the phone mobile
+// ========== Gestionnaires Connexion Hotspot ==========
 
+// Démarrage du hotspot WiFi
 ipcMain.handle("start-hotspot", async () => {
   try {
-      // Démarrer le hotspot
-      const hotspotResult = await startHotspot();
+    // Démarrage du hotspot
+    const hotspotResult = await connectionService.startHotspot();
+    
+    if (hotspotResult.error) {
+      return hotspotResult;
+    }
 
-      // Attendre un court instant pour s'assurer que le hotspot est bien activé
-      await new Promise(resolve => setTimeout(resolve, 3000));
+    // Attente pour la stabilisation du hotspot
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
-      // Récupérer le SSID et la clé de sécurité
-      let data = await getWifiInfo();
+    // Récupération des informations WiFi
+    const wifiCredentials = await connectionService.getWifiCredentials();
+    
+    if (!wifiCredentials.ssid || !wifiCredentials.password) {
+      return { error: "Impossible de récupérer les informations du hotspot" };
+    }
 
-      const wifiEncryption = "WPA"; // WPA, WPA2 ou NONE
-      const wifiInfo = extractWifiInfo(data);
-      
-      if (!wifiInfo.ssid || !wifiInfo.password) {
-        return { error: "Impossible de récupérer les informations du hotspot" };
-      }
-      else
-      {
-        const wifiString = `WIFI:T:${wifiEncryption};S:${wifiInfo.ssid};P:${wifiInfo.password};;`;
-        return { wifiString };
-      }
+    // Génération de la chaîne WiFi pour QR code
+    const wifiString = connectionService.generateWifiQRString(
+      wifiCredentials.ssid, 
+      wifiCredentials.password, 
+      "WPA"
+    );
+    
+    return { wifiString };
   } catch (error) {
-      return { error: "Erreur lors du démarrage du hotspot" };
+    console.error("Erreur lors du démarrage du hotspot:", error);
+    return { error: "Erreur lors du démarrage du hotspot" };
   }
 });
 
-// Récupérer l'adresse IP
+// Récupération de l'adresse IP du téléphone
 ipcMain.handle("get-ip", async () => {
   try {
-    let ipAddress = await getPhoneIpAddress();
-    if (ipAddress) {
-      ipAddress = extractIpAddress(ipAddress);
-    }
-    return ipAddress; // This will be sent back to the renderer process
+    const ipAddress = await connectionService.getConnectedPhoneIP();
+    return ipAddress;
   } catch (error) {
-    console.error("Error fetching IP:", error);
+    console.error("Erreur lors de la récupération de l'IP:", error);
     return null;
   }
 });
 
-// Récupérer les dossiers
-ipcMain.handle("get-folders", async (_, rootPath) => {
-  return getFolders(rootPath);
-});
-
-// Service de transfert d'images
-let imageTransferServer: http.Server | null = null;
-let transferServiceStatus = false;
-
-// Démarrer le service de transfert d'images
-ipcMain.handle('start-image-transfer-service', async () => {
+// Récupération des informations WiFi
+ipcMain.handle('get-wifi-info', async () => {
   try {
-    // Vérifier si le service est déjà en cours d'exécution
-    if (transferServiceStatus) {
-      return { message: "Le service est déjà actif", status: true };
-    }
-    
-    // Démarrer le service
-    const serviceInfo = await startImageTransferService();
-    transferServiceStatus = true;
-    
-    // Envoyer l'événement de démarrage du service
-    mainWindow?.webContents.send('transfer:service-started', serviceInfo);
-    
-    // Configurer les redirections d'événements
-    transferEvents.on('transfer:start', (info) => {
-      mainWindow?.webContents.send('transfer:start', info);
-    });
-    
-    transferEvents.on('transfer:progress', (info) => {
-      mainWindow?.webContents.send('transfer:progress', info);
-    });
-    
-    transferEvents.on('transfer:complete', (info) => {
-      mainWindow?.webContents.send('transfer:complete', info);
-    });
-    
-    transferEvents.on('transfer:error', (info) => {
-      mainWindow?.webContents.send('transfer:error', info);
-    });
-    
-    return serviceInfo;
+    const wifiCredentials = await connectionService.getWifiCredentials();
+    return wifiCredentials;
   } catch (error) {
-    console.error("Erreur lors du démarrage du service de transfert:", error);
+    console.error("Erreur lors de la récupération des informations WiFi:", error);
     return { error: `Erreur: ${error}` };
   }
 });
 
-// Arrêter le service de transfert d'images
+// ========== Gestionnaires Service de Transfert ==========
+
+let imageTransferServer: http.Server | null = null;
+let transferServiceStatus = false;
+
+// Démarrage du service de transfert d'images
+ipcMain.handle('start-image-transfer-service', async () => {
+  try {
+    if (transferServiceStatus) {
+      return { 
+        message: "Le service est déjà actif", 
+        status: true,
+        serverIp: "déjà en cours"
+      };
+    }
+    
+    // Démarrage du service de transfert
+    const serviceInfo = await startImageTransferService();
+    transferServiceStatus = true;
+    
+    // Notification du démarrage du service
+    mainWindow?.webContents.send('transfer:service-started', serviceInfo);
+    
+    // Configuration des écouteurs d'événements de transfert
+    setupTransferEventListeners();
+    
+    console.log("Service de transfert démarré:", serviceInfo);
+    return serviceInfo;
+  } catch (error) {
+    console.error("Erreur lors du démarrage du service de transfert:", error);
+    return { error: `Erreur lors du démarrage: ${error}` };
+  }
+});
+
+// Arrêt du service de transfert d'images
 ipcMain.handle('stop-image-transfer-service', async () => {
   try {
     if (!transferServiceStatus) {
-      return { message: "Le service est déjà arrêté", status: false };
+      return { 
+        message: "Le service est déjà arrêté", 
+        status: false 
+      };
     }
     
-    // Arrêter le serveur si existant
+    // Arrêt du serveur
     if (imageTransferServer) {
       await stopImageTransferService(imageTransferServer);
       imageTransferServer = null;
     }
     
     transferServiceStatus = false;
+    
+    // Notification d'arrêt du service
     mainWindow?.webContents.send('transfer:service-stopped');
     
-    return { message: "Service arrêté avec succès", status: false };
+    console.log("Service de transfert arrêté avec succès");
+    return { 
+      message: "Service arrêté avec succès", 
+      status: false 
+    };
   } catch (error) {
     console.error("Erreur lors de l'arrêt du service:", error);
-    return { error: `Erreur: ${error}` };
+    return { error: `Erreur lors de l'arrêt: ${error}` };
   }
 });
 
-// Générer un QR code pour le transfert d'images
+// Configuration des écouteurs d'événements de transfert
+function setupTransferEventListeners() {
+  transferEvents.removeAllListeners(); // Nettoyage des anciens écouteurs
+  
+  transferEvents.on('transfer:start', (info) => {
+    console.log("Transfert démarré:", info.fileName);
+    mainWindow?.webContents.send('transfer:start', info);
+  });
+  
+  transferEvents.on('transfer:progress', (info) => {
+    mainWindow?.webContents.send('transfer:progress', info);
+  });
+  
+  transferEvents.on('transfer:complete', (info) => {
+    console.log("Transfert terminé:", info.fileName);
+    mainWindow?.webContents.send('transfer:complete', info);
+  });
+  
+  transferEvents.on('transfer:error', (info) => {
+    console.error("Erreur de transfert:", info.error);
+    mainWindow?.webContents.send('transfer:error', info);
+  });
+}
+
+// Génération d'un QR code pour le transfert
 ipcMain.handle('generate-transfer-qrcode', (_, wifiString, serverIp) => {
-  return generateTransferQRCode(wifiString, serverIp);
-});
-
-// Obtenir le statut du service de transfert
-ipcMain.handle('get-transfer-service-status', () => {
-  return { active: transferServiceStatus };
-});
-
-// Récupérer les informations WiFi
-ipcMain.handle('get-wifi-info', async () => {
   try {
-    const data = await getWifiInfo();
-    return extractWifiInfo(data);
+    return generateTransferQRCode(wifiString, serverIp);
   } catch (error) {
-    console.error("Erreur lors de la récupération des informations WiFi:", error);
-    return { error: `Erreur: ${error}` };
+    console.error("Erreur lors de la génération du QR code:", error);
+    return { error: "Erreur lors de la génération du QR code" };
   }
+});
+
+// Récupération du statut du service de transfert
+ipcMain.handle('get-transfer-service-status', () => {
+  return { 
+    active: transferServiceStatus,
+    timestamp: new Date().toISOString()
+  };
+});
+
+// Récupération des appareils connectés
+ipcMain.handle('get-connected-devices', async () => {
+  try {
+    // Cette fonction devrait être implémentée dans connectionService
+    // Pour l'instant, retourne un tableau vide
+    return [];
+  } catch (error) {
+    console.error("Erreur lors de la récupération des appareils:", error);
+    return [];
+  }
+});
+
+// ========== Gestionnaires Dossiers ==========
+
+// Récupération de l'arborescence des dossiers
+ipcMain.handle("get-folders", async (_, rootPath) => {
+  try {
+    return getFolders(rootPath);
+  } catch (error) {
+    console.error("Erreur lors de la récupération des dossiers:", error);
+    return { error: "Erreur lors de la récupération des dossiers" };
+  }
+});
+
+// ========== Gestion de la fermeture de l'application ==========
+
+app.on('window-all-closed', async () => {
+  // Nettoyage avant fermeture
+  if (transferServiceStatus && imageTransferServer) {
+    try {
+      await stopImageTransferService(imageTransferServer);
+      console.log("Service de transfert arrêté lors de la fermeture");
+    } catch (error) {
+      console.error("Erreur lors de l'arrêt du service:", error);
+    }
+  }
+
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    // Recréer la fenêtre si nécessaire (macOS)
+    app.emit('ready');
+  }
+});
+
+// ========== Gestion des erreurs non capturées ==========
+
+process.on('uncaughtException', (error) => {
+  console.error('Erreur non capturée:', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Promesse rejetée non gérée:', reason);
 });

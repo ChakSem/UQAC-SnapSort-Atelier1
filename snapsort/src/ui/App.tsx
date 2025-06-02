@@ -3,7 +3,7 @@ import Home from './pages/Home';
 import Settings from './pages/Settings';
 import UnsortedImages from './pages/UnsortedImages';
 import MainLayout from "./layouts/MainLayout";
-import Connexion from './pages/Connexion';
+import Connexion from './components/connection/Connection';
 import Albums from './pages/Albums';
 
 import './App.css'

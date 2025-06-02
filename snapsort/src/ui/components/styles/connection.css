@@ -1,0 +1,529 @@
+/* Connection Page Styles */
+.connection-container {
+  background-color: #f9fafb;
+  min-height: 100vh;
+  overflow-y: auto;
+}
+
+.connection-wrapper {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.connection-title {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+/* Grid Layout */
+.connection-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .connection-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Card Components */
+.connection-card {
+  background-color: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: transform 0.2s ease-in-out;
+}
+
+.connection-card:hover {
+  transform: translateY(-2px);
+}
+
+.connection-card-header {
+  padding: 1rem 1.5rem;
+  color: white;
+  font-weight: 600;
+}
+
+.connection-card-header--hotspot {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+
+.connection-card-header--transfer {
+  background: linear-gradient(135deg, #059669, #047857);
+}
+
+.connection-card-header--status {
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+}
+
+.connection-card-title {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.connection-card-content {
+  padding: 1.5rem;
+}
+
+/* Button Styles */
+.connection-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  text-decoration: none;
+}
+
+.connection-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.connection-btn--primary {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.connection-btn--primary:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+.connection-btn--success {
+  background-color: #059669;
+  color: white;
+}
+
+.connection-btn--success:hover:not(:disabled) {
+  background-color: #047857;
+}
+
+.connection-btn--danger {
+  background-color: #dc2626;
+  color: white;
+}
+
+.connection-btn--danger:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+.connection-btn--disabled {
+  background-color: #d1d5db;
+  color: #6b7280;
+}
+
+.connection-btn--loading {
+  position: relative;
+}
+
+.connection-btn--loading::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-left: 0.5rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Button Group */
+.connection-btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Info Sections */
+.connection-info-section {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.connection-info-box {
+  background-color: #f9fafb;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+}
+
+.connection-wifi-string {
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+  word-break: break-all;
+  margin: 0;
+  color: #374151;
+}
+
+.connection-server-info {
+  background-color: #f9fafb;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  margin-top: 1.5rem;
+}
+
+.connection-info-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.connection-info-row:last-child {
+  margin-bottom: 0;
+}
+
+.connection-info-label {
+  font-weight: 600;
+  color: #374151;
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.connection-info-value {
+  font-family: 'Courier New', monospace;
+  color: #111827;
+}
+
+/* QR Code Styles */
+.connection-qr-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 1.5rem;
+}
+
+.connection-qr-title {
+  font-size: 1.125rem;
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+  color: #374151;
+  text-align: center;
+}
+
+.connection-qr-wrapper {
+  background-color: white;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+}
+
+.connection-qr-image {
+  width: 256px;
+  height: 256px;
+  display: block;
+}
+
+/* Transfer Status Styles */
+.connection-status-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .connection-status-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.connection-progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.connection-progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.connection-progress-filename {
+  font-weight: 500;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  margin-right: 1rem;
+}
+
+.connection-progress-percentage {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #7c3aed;
+}
+
+.connection-progress-bar {
+  width: 100%;
+  height: 0.625rem;
+  background-color: #e5e7eb;
+  border-radius: 0.3125rem;
+  overflow: hidden;
+}
+
+.connection-progress-fill {
+  height: 100%;
+  background-color: #7c3aed;
+  border-radius: 0.3125rem;
+  transition: width 0.3s ease-in-out;
+}
+
+.connection-progress-bytes {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.connection-waiting-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+.connection-spinner {
+  animation: spin 1s linear infinite;
+  margin-right: 0.75rem;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Device List */
+.connection-device-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.connection-card-header--devices {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.connection-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.connection-refresh-btn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Progress Section */
+.connection-progress-file-count {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+/* Completed Transfers Section */
+.connection-completed-section {
+  margin-top: 2rem;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1rem;
+}
+
+.connection-completed-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.connection-completed-title {
+  font-weight: 500;
+  color: #374151;
+  margin: 0;
+}
+
+.connection-completed-badge {
+  background-color: #d1fae5;
+  color: #065f46;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+}
+
+.connection-completed-list {
+  max-height: 10rem;
+  overflow-y: auto;
+  background-color: #f9fafb;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.connection-completed-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.connection-completed-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.connection-completed-item--more {
+  color: #6b7280;
+  font-style: italic;
+}
+
+.connection-completed-icon {
+  color: #059669;
+  flex-shrink: 0;
+}
+
+.connection-completed-filename {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connection-device-item {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background-color: #fafafa;
+}
+
+.connection-device-icon {
+  background-color: #ede9fe;
+  padding: 0.5rem;
+  border-radius: 50%;
+  margin-right: 1rem;
+  flex-shrink: 0;
+}
+
+.connection-device-info {
+  flex: 1;
+}
+
+.connection-device-name {
+  font-weight: 500;
+  color: #111827;
+  margin-bottom: 0.25rem;
+}
+
+.connection-device-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.connection-device-detail {
+  display: flex;
+  align-items: center;
+}
+
+.connection-device-detail-value {
+  font-family: 'Courier New', monospace;
+  margin-left: 0.25rem;
+}
+
+.connection-no-devices {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem;
+  text-align: center;
+  color: #6b7280;
+}
+
+.connection-no-devices-icon {
+  width: 3rem;
+  height: 3rem;
+  color: #d1d5db;
+  margin-bottom: 0.75rem;
+}
+
+.connection-no-devices-text {
+  margin-bottom: 0.25rem;
+}
+
+.connection-no-devices-subtext {
+  font-size: 0.875rem;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .connection-wrapper {
+    padding: 1rem 0.5rem;
+  }
+  
+  .connection-title {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .connection-btn-group {
+    flex-direction: column;
+  }
+  
+  .connection-btn {
+    width: 100%;
+  }
+  
+  .connection-qr-image {
+    width: 200px;
+    height: 200px;
+  }
+  
+  .connection-device-details {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
