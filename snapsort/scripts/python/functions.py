@@ -90,9 +90,9 @@ def create_arborescence_from_csv(csv_file):
     data.to_csv(csv_file, index=False)
 
 
-def create_category_folders_from_csv(csv_file, destination_directory, test=False):
+def create_category_folders_from_csv(csv_file, destination_directory, arborescence=True):
 
-    if not test:
+    if arborescence:
         tree_struct = 'folder_path'
     else :
         tree_struct = 'categories'
