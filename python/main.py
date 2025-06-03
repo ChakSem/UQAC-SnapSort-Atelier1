@@ -5,11 +5,12 @@ import sys
 sys.stdout.reconfigure(line_buffering=True)
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
-from functions import create_category_folders_from_csv, set_parser, create_arborescence_from_csv
+from functions import create_category_folders_from_csv, create_arborescence_from_csv
 from categories_manager import CategoriesManager
 
-DIRECTORY = r"..\photos_final"
+DIRECTORY = r"..\test_data_copy"
 DESTINATION_DIRECORY = r"..\results"
+CLEANING = False
 
 if __name__ == "__main__":
     directory = DIRECTORY
@@ -19,14 +20,14 @@ if __name__ == "__main__":
     
     call.pipeline(starting_time)
 
-    if os.path.exists(destination_directory):
-        shutil.rmtree(destination_directory)
+    if CLEANING:
+        if os.path.exists(destination_directory):
+            shutil.rmtree(destination_directory)
 
-    os.mkdir(destination_directory)
     #call.create_autres_subfolders(destination_directory)
 
     create_arborescence_from_csv(directory + ".csv")
-    create_category_folders_from_csv(directory + ".csv", destination_directory, test=False)
+    create_category_folders_from_csv(directory + ".csv", destination_directory, arborescence=False)
 
     total_time = time.time() - starting_time
     print(f"Temps total d'exécution : {total_time:.2f} secondes")
