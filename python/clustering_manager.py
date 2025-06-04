@@ -48,9 +48,9 @@ class ClusteringManager(EmbeddingsManager):
                     })
         return embeddings_dict
 
-    def neighbors_similarity_clustering(self, embeddings_dict, threshold=0.6, n_neighbors=3):
+    def neighbors_similarity_clustering(self, embeddings_dict, threshold, n_neighbors=3):
         clusters_by_day = {}
-        self.global_cluster_id = 0  # On le met en attribut d’instance si tu veux l’utiliser ailleurs
+        self.global_cluster_id = 0
 
         total_images = sum(len(images) for images in embeddings_dict.values())
         last_number = 1
@@ -69,6 +69,7 @@ class ClusteringManager(EmbeddingsManager):
         clusters = {}
         current_cluster = []        # Liste pour stocker les images du cluster en cours
         already_clustered = set()   # Ensemble pour suivre les images déjà clustérisées
+        all_outliers = []
 
         for i in range(N):
             print(f"Etape [2/5] : [{i + last_number}/{total_images}]\n")
@@ -76,26 +77,27 @@ class ClusteringManager(EmbeddingsManager):
             if current_img in already_clustered:
                 continue
 
-            # Définir la plage de voisins à considérer
             end_idx = min(i + n_neighbors + 1, N)
-            similar_images = []    # Liste pour stocker les images similaires trouvées
+            checking_paths = paths[i:end_idx]
+            checking_embeddings = embeddings[i:end_idx]
 
-            # Ajouter l'image courante au cluster si pas encore clustérisée
-            if current_img not in already_clustered:
+            photos, outliers = self._photos_to_add(checking_paths, checking_embeddings, threshold)
+            if outliers:
+                all_outliers.append(outliers[0])
+
+            if photos and current_img not in already_clustered:
                 current_cluster.append(current_img)
                 already_clustered.add(current_img)
+                print(f"Ajout de {current_img} au cluster {self.global_cluster_id}")
 
-            # Chercher des images similaires parmi les voisins
-            neighbor_img = self._find_similar_neighbors(i, embeddings, paths, threshold, end_idx)
-
-            # Si une image similaire est trouvée, l'ajouter au cluster
-            if neighbor_img and neighbor_img not in already_clustered:
-                current_cluster.append(neighbor_img)
-                already_clustered.add(neighbor_img)
-                similar_images.append(neighbor_img)
+            for elem in photos:
+                if elem[0] not in already_clustered:
+                    current_cluster.append(elem[0])
+                    already_clustered.add(elem[0])
+                    print(f"Ajout de {elem[0]} au cluster {self.global_cluster_id}")
 
             # Si aucune image similaire trouvée et qu'on a un cluster en cours, finaliser le cluster
-            if not similar_images and len(current_cluster) > 0:
+            if not photos and current_cluster:
                 self._finalize_cluster(clusters, current_cluster)
 
         # Traitement du dernier cluster s'il n'est pas vide
@@ -109,15 +111,25 @@ class ClusteringManager(EmbeddingsManager):
 
         return clusters
 
-    def _find_similar_neighbors(self, i, embeddings, paths, threshold, n_neighbors):
-        neighbor_img = None
-        for j in range(i + 1, n_neighbors):
-            sim = np.dot(embeddings[i], embeddings[j])
-            #print(f"Les photos {paths[i]} et {paths[j]} ont une similarité de {sim:.2f}")
-            if sim > threshold:
-                neighbor_img = paths[j]
+    def _photos_to_add(self, paths, embeddings, threshold):
+        photos = []
+        outliers = []
+        all_photos = False
 
-        return neighbor_img
+        sim_furthest = np.dot(embeddings[0], embeddings[-1])
+        if sim_furthest > threshold:
+            all_photos = True
+
+        for i in range(1, len(paths)):
+            sim = np.dot(embeddings[0], embeddings[i])
+            print(f"Les photos {paths[0]} et {paths[i]} ont une similarité de {sim:.2f}")
+            if sim >= threshold:
+                photos.append((paths[i], sim))
+            elif all_photos:
+                photos.append((paths[i], sim))
+                outliers.append(paths[i])
+
+        return photos, outliers
 
     def _finalize_cluster(self, clusters, cluster_images):
         cluster_name = f"cluster_{self.global_cluster_id}"
@@ -138,7 +150,7 @@ class ClusteringManager(EmbeddingsManager):
 
         return other_cluster
 
-    def perform_neighbors_clustering(self, threshold=0.6, n_neighbors=3):
+    def perform_neighbors_clustering(self, threshold, n_neighbors=3):
         #print("CLUSTERING DES IMAGES PAR VOISINS PROCHES...")
         days_dict = self.day_sorting()
         print(f"ETAPE 1 - Génération des embeddings : \n")
