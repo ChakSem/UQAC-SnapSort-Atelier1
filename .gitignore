@@ -29,3 +29,11 @@ nextSteps.txt
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Testing images
+*.png
+*.jpg
+
+# python
+__pycache__/
+python-3*/
