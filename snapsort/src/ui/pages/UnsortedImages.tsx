@@ -3,6 +3,7 @@ import '../styles/components.css';
 import ImagesViewer from "../components/ImageViewer";
 import { MediaFile } from "../types/types";
 import { Status } from "../types/types";
+import { useNavigate } from "react-router-dom";
 
 function UnsortedImages() {
   const [files, setFiles] = useState<MediaFile[]>([]);
@@ -10,6 +11,7 @@ function UnsortedImages() {
   const [logs, setLogs] = useState<string[]>([]);
   const [aiProcessing, setAIProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
+  const navigate = useNavigate();
 
   const runPythonScript = async () => {
     // Change the UI state to indicate that AI processing is in progress
@@ -31,6 +33,23 @@ function UnsortedImages() {
   const handleReduceLoading = () => {
     setStatus('loading');
   }
+
+  // Handler pour les logs Python
+  const handleLog = (msg: string) => {
+    console.log(msg);
+    // Estimer le progrès
+    estimateProgress(msg);
+    // Store the progress in the state
+    setLogs(prevLogs => {
+      const newLogs = [...prevLogs, msg];
+      return newLogs.length > 30 ? newLogs.slice(newLogs.length - 30) : newLogs;
+    });
+  };
+
+  const handlePythonEnd = () => {
+    // Redirect to Albums page
+    navigate("/albums");
+  };
 
   const estimateProgress = (msg: string) => {
     const match = msg.match(/Etape \[(\d+)\/(\d+)\] : \[(\d+)\/(\d+)\]/);
@@ -77,24 +96,15 @@ function UnsortedImages() {
   }, []);
 
   useEffect(() => {
-    // Handler pour les logs Python
-    const handleLog = (msg: string) => {
-      console.log(msg);
-      // Estimer le progrès
-      estimateProgress(msg);
-      // Store the progress in the state
-      setLogs(prevLogs => {
-        const newLogs = [...prevLogs, msg];
-        return newLogs.length > 30 ? newLogs.slice(newLogs.length - 30) : newLogs;
-      });
-    };
-
+    
     // Écouter les événements du script Python
     (window as any).electron.onPythonLog(handleLog);
+    (window as any).electron.onPythonEnd(handlePythonEnd);
 
     // Nettoyage pour éviter les doublons
     return () => {
       (window as any).electron.removePythonLogListener?.(handleLog);
+      (window as any).electron.removePythonEndListener?.(handlePythonEnd);
     };
   }, []);
 

@@ -15,6 +15,12 @@ contextBridge.exposeInMainWorld('electron', {
             logHandler = null;
         }
     },
+    onPythonEnd: (callback: () => void) => {
+        ipcRenderer.on("python-end", callback);
+    },
+    removePythonEndListener: (callback: () => void) => {
+        ipcRenderer.removeListener("python-end", callback);
+    },
 
     // Settings
     selectDirectory: () => ipcRenderer.invoke('select-directory'),

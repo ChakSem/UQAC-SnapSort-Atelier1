@@ -88,6 +88,7 @@ ipcMain.handle('run-python', async (event) => {
 
   // Set global variable AIProcessing to false
   globalStore.set("AIProcessing", false);
+  win.webContents.send('python-end');
 });
 
 // Settings Handler
