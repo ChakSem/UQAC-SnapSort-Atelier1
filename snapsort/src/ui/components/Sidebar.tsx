@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import '../styles/components.css';
 
 import logo from '../assets/logo.png';
@@ -12,10 +12,15 @@ import { NavBarItemProps, BottomItemProps } from '../types/interfaces';
 
 const NavBarItem: React.FC<NavBarItemProps> = ({ label, imageUrl, redirectTo }) => {
   return (
-    <Link to={redirectTo} className="sidebar-item">
+    <NavLink
+      to={redirectTo}
+      className={({ isActive }) =>
+        "sidebar-item" + (isActive ? " active" : "")
+      }
+    >
       <img src={imageUrl} alt={label} className="sidebar-icon" />
       <span>{label}</span>
-    </Link>
+    </NavLink>
   );
 };
 

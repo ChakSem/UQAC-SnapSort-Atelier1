@@ -62,6 +62,11 @@
     background-color: var(--secondary-button-bg);
     color: var(--secondary-text);
   }
+
+  .sidebar-item.active {
+    background-color: var(--secondary-button-bg);
+    color: var(--secondary-text);
+  }
   
   .sidebar-icon {
     width: 50px;
