@@ -3,6 +3,7 @@ import { MediaFile } from './types';
 // Définition du type pour les props
 export interface ImagesViewerProps {
     mediaFiles: MediaFile[];
+    height?: number;
 }
 
 export interface NavBarItemProps {

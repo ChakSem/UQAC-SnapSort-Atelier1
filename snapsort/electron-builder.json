@@ -4,7 +4,19 @@
       "dist-electron",
       "dist-react"],
     "asarUnpack":"scripts/**",
-    "extraResources": ["dist-electron/preload.cjs", "src/assets/**", "scripts/**"],
+    "extraResources": [
+      "dist-electron/preload.cjs",
+      "src/assets/**",
+      {
+        "from": "scripts/",
+        "to": "scripts/",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/python-3*/**"
+        ]
+      }
+    ],
     "icon": "./logo.png",
     "mac": {
       "target": "dmg"

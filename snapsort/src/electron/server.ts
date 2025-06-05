@@ -5,7 +5,7 @@ import path from 'path';
 import { EventEmitter } from 'events';
 import connectionService from './connectionService.js';
 import { networkInterfaces } from 'os';
-import store from './store.js';
+import { store } from './store.js';
 
 export const transferEvents = new EventEmitter();
 const SERVER_PORT = 8080;

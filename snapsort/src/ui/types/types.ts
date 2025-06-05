@@ -11,3 +11,5 @@ export type Folder = {
     path: string;
     children: Folder[];
 }
+
+export type Status = 'no-loading' | 'loading' | 'extended-loading';

@@ -3,7 +3,10 @@ import { ImagesViewerProps } from '../types/interfaces';
 import RenderMediaItem from './RenderMediaItem';
 import EnlargedView from './EnlargedView';
 
-function ImagesViewer({ mediaFiles }: ImagesViewerProps) {
+function ImagesViewer({ mediaFiles, height }: ImagesViewerProps) {
+  // If height is not provided, set it to 125.6px
+  const defaultHeight = height || 125.6;
+
   // État pour suivre le niveau de zoom (par défaut 200px)
   const [imageHeight, setImageHeight] = useState<number>(200);
   
@@ -55,7 +58,10 @@ function ImagesViewer({ mediaFiles }: ImagesViewerProps) {
         <i className="fi fi-br-minus-circle" onClick={zoomOut}></i>
       </div>
 
-      <div className="image-viewer-container">
+      <div
+        className="image-viewer-container"
+        style={{ height: `calc(100vh - ${defaultHeight}px)` }}
+      >
         {mediaFiles.map((mediaFile, index) => (
           <RenderMediaItem
             key={mediaFile.path || index} // Utilisez une clé unique (de préférence `mediaFile.path`)

@@ -27,11 +27,24 @@ const VALID_CHANNELS = [
   'transfer:service-stopped'
 ] as const;
 
+let logHandler: ((event: any, msg: string) => void) | null = null;
+
 // Exposition des APIs Electron au renderer process
 contextBridge.exposeInMainWorld('electron', {
   
   // ========== GESTIONNAIRES PYTHON ==========
   runPython: () => ipcRenderer.invoke('run-python'),
+  onPythonLog: (callback: (msg: string) => void) => {
+      logHandler = (_, msg) => callback(msg);
+      ipcRenderer.on("log", logHandler);
+  },
+  removePythonLogListener: () => {
+      if (logHandler) {
+          ipcRenderer.removeListener("log", logHandler);
+          logHandler = null;
+      }
+  },
+
 
   // ========== GESTIONNAIRES PARAMÈTRES ==========
   getSetting: (key: string) => ipcRenderer.invoke('get-setting', key),
@@ -39,7 +52,9 @@ contextBridge.exposeInMainWorld('electron', {
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
 
   // ========== GESTIONNAIRES FICHIERS MÉDIA ==========
-  getMediaFiles: (directoryPath: string) => ipcRenderer.invoke('get-media-files', directoryPath),
+  getMediaFiles: (key: string) => ipcRenderer.invoke("get-media-files", key),
+  getGlobalVariables: (key: string) => ipcRenderer.invoke("get-global-variables", key),
+  setGlobalVariables: (key: string, value: any) => ipcRenderer.invoke("set-global-variables", key, value),
 
   // ========== GESTIONNAIRES CONNEXION HOTSPOT ==========
   startHotspot: () => ipcRenderer.invoke('start-hotspot'),

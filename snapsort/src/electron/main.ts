@@ -10,14 +10,15 @@ import {
 import path from 'path';
 import fs from 'fs';
 import { isDev, cleanTempFolder, generateThumbnail } from './util.js';
-import { getPreloadPath, getScriptsPath } from './pathResolver.js';
+import { getPreloadPath } from './pathResolver.js';
 // Import depuis le nouveau service
 import connectionService from './connectionService.js';
 // Import du scanner réseau
 import { getConnectedDevices, getNetworkStats } from './networkScanner.js';
-import store from "./store.js";
+import { store, globalStore } from "./store.js";
 import { getFolders } from './folderManager.js';
-import { runPipeline } from './python.js';
+import { runPythonFile } from './python/runMain.js';
+import { setupPythonEnv } from './python/setupPythonEnv.js';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -38,17 +39,30 @@ app.on('ready', () => {
     frame: true
   });
 
+  // Set global variable AIProcessing to true
+  globalStore.set("AIProcessing", false);
+
   if (isDev()) {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
-  } else {
+  }
+  else {
     mainWindow.loadFile(path.join(app.getAppPath(), '/dist-react/index.html'));
   }
 });
 
-// ========== Gestionnaires Python ==========
+// Execute Python Script Handler
+ipcMain.handle('run-python', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return { error: "No window found" };
 
-ipcMain.handle('run-python', async () => {
+  // Set global variable AIProcessing to true
+  globalStore.set("AIProcessing", true);
+
+  // Define the log/error forwarding functions ONCE
+  const forwardLog = (msg: string) => win.webContents.send('log', msg);
+
+  // Récupérer le chemin du dossier principal
   const rootPath = store.get("directoryPath") as string;
   if (!rootPath) {
     return { error: "No root directory path set" };
@@ -56,7 +70,14 @@ ipcMain.handle('run-python', async () => {
 
   const unsortedImagesPath = path.join(rootPath, "unsorted_images");
   if (!fs.existsSync(unsortedImagesPath)) {
-    return { error: "Dossier unsorted_images non trouvé" };
+    console.log("No images to sort : unsorted_images folder not found");
+    return unsortedImagesPath;
+  }
+  // Si le dossier existe, vérifier qu'il n'est pas vide
+  const files = fs.readdirSync(unsortedImagesPath);
+  if (files.length === 0) {
+    console.log("No images to sort : unsorted_images folder is empty");
+    return unsortedImagesPath;
   }
 
   const albumsPath = path.join(rootPath, 'albums');
@@ -64,22 +85,22 @@ ipcMain.handle('run-python', async () => {
     fs.mkdirSync(albumsPath, { recursive: true });
   }
 
-  const pythonScriptPath = getScriptsPath('LLM_pipeline.py');
-  if (!fs.existsSync(pythonScriptPath)) {
-    return { error: "Le script Python n'existe pas" };
-  }
+  // Vérifier que l'environnement Python est prêt
+  await setupPythonEnv({ onLog: forwardLog });
 
-  try {
-    console.log("Exécution du script Python...");
-    const output = await runPipeline({ 
-      directory: unsortedImagesPath, 
-      destination_directory: albumsPath 
-    });
-    return { output };
-  } catch (error) {
-    console.error("Erreur lors de l'exécution du script Python:", error);
-    return { error: "Erreur lors de l'exécution du script Python" };
-  }
+  // Exécuter le script Python
+  forwardLog("[COMMENT]: unsortedImagesPath:" + unsortedImagesPath);
+  forwardLog("[COMMENT]: albumsPath: " + albumsPath);
+  forwardLog("[COMMENT]: Running Python script...");
+
+  await runPythonFile({
+    directory: unsortedImagesPath,
+    destination_directory: albumsPath,
+    onLog: forwardLog,
+  });
+
+  // Set global variable AIProcessing to false
+  globalStore.set("AIProcessing", false);
 });
 
 // ========== Gestionnaires Paramètres ==========
@@ -154,6 +175,26 @@ ipcMain.handle("get-media-files", async (_, directoryPath) => {
   } catch (error) {
     return { error: `Échec de lecture du dossier: ${error}` };
   }
+});
+
+// Récupérer une valeur du store
+ipcMain.handle("get-global-variables", (_, key) => {
+  return globalStore.get(key);
+});
+
+// Enregistrer une valeur dans le store
+ipcMain.handle("set-global-variables", (_, key, value) => {
+  globalStore.set(key, value);
+});
+
+// Récupérer une valeur du store
+ipcMain.handle("get-global-variables", (_, key) => {
+  return globalStore.get(key);
+});
+
+// Enregistrer une valeur dans le store
+ipcMain.handle("set-global-variables", (_, key, value) => {
+  globalStore.set(key, value);
 });
 
 // ========== Gestionnaires Connexion Hotspot ==========
