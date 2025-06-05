@@ -32,7 +32,7 @@ class CategoriesManager(EmbeddingsManager):
 
     def get_predifined_categories(self):
         predefined_categories = ["Ville", "Plage", "Randonnée", "Sport", "Musée", "Nourriture", "Restaurant", "Voyages", "Nature",
-                                 "Neige", "Famille et amis", "Animaux", "Autres"]
+                                 "Neige", "Famille et amis", "Jeux", "Animaux", "Autres"]
 
         # Ajout de traduction anglaise pour chaque catégorie pour améliorer la correspondance car CLIP fonctionne mieux en anglais qu'en français
         fr_to_en = {
@@ -47,6 +47,7 @@ class CategoriesManager(EmbeddingsManager):
             "Nature": "Nature wildlife water flora fauna",
             "Neige": "Snow winter cold",
             "Famille et amis": "Family friends gathering",
+            "Jeux": "Games entertainment fun",
             "Animaux": "Animals pets wildlife",
             "Autres": "miscellaneous computer screenshots"
         }
