@@ -31,8 +31,8 @@ class CategoriesManager(EmbeddingsManager):
         return image_paths
 
     def get_predifined_categories(self):
-        predefined_categories = ["Ville", "Plage", "Randonnée", "Sport", "Musée", "Nourriture", "Voyages", "Nature",
-                                 "Neige", "Bâtiment", "Autres", "Famille et amis", "Animaux"]
+        predefined_categories = ["Ville", "Plage", "Randonnée", "Sport", "Musée", "Nourriture", "Restaurant", "Voyages", "Nature",
+                                 "Neige", "Famille et amis", "Jeux", "Animaux", "Autres"]
 
         # Ajout de traduction anglaise pour chaque catégorie pour améliorer la correspondance car CLIP fonctionne mieux en anglais qu'en français
         fr_to_en = {
@@ -41,10 +41,15 @@ class CategoriesManager(EmbeddingsManager):
             "Randonnée": "Hiking trail forest path",
             "Sport": "Sports activity athletic",
             "Musée": "Museum exhibition art gallery",
+            "Nourriture": "Food cuisine meal",
             "Restaurant": "Restaurant dining food",
-            "Voyages": "Travel vacation snow",
-            "Nature": "Nature wildlife environment flora fauna",
-            "Autres": "Miscellaneous other"
+            "Voyages": "Travel vacation trip",
+            "Nature": "Nature wildlife water flora fauna",
+            "Neige": "Snow winter cold",
+            "Famille et amis": "Family friends gathering",
+            "Jeux": "Games entertainment fun",
+            "Animaux": "Animals pets wildlife",
+            "Autres": "miscellaneous computer screenshots"
         }
 
         en_categories = [fr_to_en.get(cat, cat) for cat in predefined_categories]
@@ -71,7 +76,7 @@ class CategoriesManager(EmbeddingsManager):
 
         return cluster_images
 
-    def best_cluster_category(self, all_embeddings, category_embeddings, predefined_categories):
+    def best_cluster_category(self, all_embeddings, category_embeddings, predefined_categories, threshold=0.10):
         cluster_embeddings = np.vstack(all_embeddings)
 
         # Calcul de l'embedding moyen du cluster
@@ -93,19 +98,31 @@ class CategoriesManager(EmbeddingsManager):
         best_cat_score = normalized_similarities[best_cat_idx]
         best_cat = predefined_categories[best_cat_idx]
 
-        '''for cat, sim in zip(predefined_categories, normalized_similarities):
+
+        if best_cat == "Autres":
+            # Prendre la 2e meilleure catégorie si "Autres" est sélectionné
+            second_best_idx = np.argsort(normalized_similarities)[-2]
+            second_best_score = normalized_similarities[second_best_idx]
+            difference_autre_score = best_cat_score - second_best_score
+            # Si la différence entre "Autres" et la 2e meilleure catégorie est inférieure au seuil, on garde la 2e meilleure catégorie
+            if difference_autre_score <= threshold :
+                best_cat = predefined_categories[second_best_idx]
+                best_cat_score = second_best_score
+
+
+        for cat, sim in zip(predefined_categories, normalized_similarities):
             print(f"{cat}: {sim:.3f}")
-        print("\n")'''
+        print("\n")
 
         # Assignation de la catégorie à toutes les images du cluster
         # Vérifier si "Autres" est suffisamment proche du meilleur score
-        autres_index = predefined_categories.index("Autres")
+        '''autres_index = predefined_categories.index("Autres")
         autres_score = normalized_similarities[autres_index]
-        diff_with_best = best_cat_score - autres_score
+        diff_with_best = best_cat_score - autres_score'''
 
-        return best_cat, best_cat_score, diff_with_best
+        return best_cat, best_cat_score
 
-    def pipeline_categories_embedding_with_clusters(self, threshold=0.1, batch_size=10, predefined_categories=None):
+    def pipeline_categories_embedding_with_clusters(self, threshold_category=0.05, threshold_clustering=0.55, batch_size=10, predefined_categories=None):
         """
         Attribue des catégories en utilisant les clusters comme unité de base.
         Toutes les images d'un même cluster reçoivent la même catégorie.
@@ -118,7 +135,7 @@ class CategoriesManager(EmbeddingsManager):
         clustering_manager = ClusteringManager(self.df)
 
         # Choix de la méthode de clustering
-        clustered_df, clusters_by_day = clustering_manager.perform_neighbors_clustering(threshold=0.6, n_neighbors=3)
+        clustered_df, clusters_by_day = clustering_manager.perform_neighbors_clustering(threshold=threshold_clustering, n_neighbors=3)
 
         self.df = clustered_df
         #print(f"Clustering terminé: {len(clusters_by_day)} jours traités")
@@ -140,6 +157,7 @@ class CategoriesManager(EmbeddingsManager):
             for cluster_name, image_paths in day_clusters.items():
                 cluster_counter += 1
                 print(f"Etape [3/4] : [{cluster_counter}/{total_clusters}]")
+                print(f"Images du cluster : {image_paths}")
 
                 if not image_paths:
                     continue
@@ -159,22 +177,22 @@ class CategoriesManager(EmbeddingsManager):
 
                 # Combinaison de tous les embeddings du cluster
                 if all_embeddings:
-                    best_cat, best_cat_score, diff_with_best = self.best_cluster_category(all_embeddings,category_embeddings,predefined_categories)
+                    best_cat, best_cat_score = self.best_cluster_category(all_embeddings,category_embeddings,predefined_categories, threshold=threshold_category)
 
                     is_single_image = len(image_paths) == 1
-                    is_ambiguous = (diff_with_best < threshold and best_cat != "Autres")
+                    #is_ambiguous = (diff_with_best < threshold and best_cat != "Autres")
                     formatted_date = day.replace(":", "_")
                     category = formatted_date + "_" + best_cat
 
                     # Attribuer "Autres" si:
-                        # - soit son score est suffisamment proche du meilleur score (diff < 0.1) et qu'il n'est pas déjà le meilleur
+                        # - soit son score est suffisamment proche du meilleur score (diff < threshold) et qu'il n'est pas déjà le meilleur
                         # - soit c'est déjà la meilleure catégorie (best_cat == "Autres")
                         # - soit le cluster ne contient qu'une seule image
 
-                    if is_ambiguous:
-                        category = "Autres/Autres"
+                    '''if is_ambiguous:
+                        category = "Autres/Autres"'''
 
-                    elif best_cat == "Autres" or is_single_image:
+                    if best_cat == "Autres" or is_single_image:
                         category = f"Autres/{best_cat}" # Sous dossier dans "Autres" avec la catégorie précédemment attribuée
 
                     print(f"Cluster {cluster_counter}: catégorie attribuée = {category} (score: {best_cat_score:.3f})")
