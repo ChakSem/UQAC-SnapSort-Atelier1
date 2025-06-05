@@ -8,9 +8,9 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 from functions import create_category_folders_from_csv, create_arborescence_from_csv
 from categories_manager import CategoriesManager
 
-DIRECTORY = r"..\test_data_copy"
-DESTINATION_DIRECORY = r"..\results"
-CLEANING = False
+DIRECTORY = r".\photos_temp"
+DESTINATION_DIRECORY = r".\results4"
+CLEANING = True
 
 if __name__ == "__main__":
     directory = DIRECTORY

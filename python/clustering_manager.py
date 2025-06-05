@@ -70,12 +70,12 @@ class ClusteringManager(EmbeddingsManager):
         current_cluster = []        # Liste pour stocker les images du cluster en cours
         already_clustered = set()   # Ensemble pour suivre les images déjà clustérisées
         all_outliers = []
+        last_index_added = -1
 
         for i in range(N):
             print(f"Etape [2/5] : [{i + last_number}/{total_images}]\n")
             current_img = paths[i]
-            if current_img in already_clustered:
-                continue
+            #print(f"Traitement de l'image {current_img}")
 
             end_idx = min(i + n_neighbors + 1, N)
             checking_paths = paths[i:end_idx]
@@ -88,16 +88,20 @@ class ClusteringManager(EmbeddingsManager):
             if photos and current_img not in already_clustered:
                 current_cluster.append(current_img)
                 already_clustered.add(current_img)
+                last_index_added = max(last_index_added, i)
                 print(f"Ajout de {current_img} au cluster {self.global_cluster_id}")
 
             for elem in photos:
-                if elem[0] not in already_clustered:
-                    current_cluster.append(elem[0])
-                    already_clustered.add(elem[0])
-                    print(f"Ajout de {elem[0]} au cluster {self.global_cluster_id}")
+                path = elem[0]
+                idx = paths.index(path)  # Trouver l'index de l'image dans la liste des chemins
+                if path not in already_clustered:
+                    current_cluster.append(path)
+                    already_clustered.add(path)
+                    last_index_added = max(last_index_added, idx) # Mettre à jour l'index du dernier ajout
+                    print(f"Ajout de {path} au cluster {self.global_cluster_id}")
 
             # Si aucune image similaire trouvée et qu'on a un cluster en cours, finaliser le cluster
-            if not photos and current_cluster:
+            if not photos and current_cluster and i >= last_index_added:
                 self._finalize_cluster(clusters, current_cluster)
 
         # Traitement du dernier cluster s'il n'est pas vide
@@ -116,13 +120,14 @@ class ClusteringManager(EmbeddingsManager):
         outliers = []
         all_photos = False
 
+        # Vérification de la similarité entre la première et la dernière image pour accepter un outlier si nécessaire
         sim_furthest = np.dot(embeddings[0], embeddings[-1])
-        if sim_furthest > threshold:
+        if sim_furthest >= threshold:
             all_photos = True
 
         for i in range(1, len(paths)):
             sim = np.dot(embeddings[0], embeddings[i])
-            print(f"Les photos {paths[0]} et {paths[i]} ont une similarité de {sim:.2f}")
+            #print(f"Les photos {paths[0]} et {paths[i]} ont une similarité de {sim:.2f}")
             if sim >= threshold:
                 photos.append((paths[i], sim))
             elif all_photos:
