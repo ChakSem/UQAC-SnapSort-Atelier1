@@ -24,8 +24,6 @@ if __name__ == "__main__":
         if os.path.exists(destination_directory):
             shutil.rmtree(destination_directory)
 
-    #call.create_autres_subfolders(destination_directory)
-
     create_arborescence_from_csv(directory + ".csv")
     create_category_folders_from_csv(directory + ".csv", destination_directory, arborescence=False)
 

@@ -1,8 +1,6 @@
 import os
 import time
 import cv2
-import shutil
-import tempfile
 from PIL import Image
 import imagehash
 
@@ -60,7 +58,7 @@ class ImageCleaner:
 
         return images_with_quality
 
-    def remove_duplicates(self, images_with_quality, phash_threshold=20):
+    def remove_duplicates(self, images_with_quality, phash_threshold=20, batch_size=10):
         """
         Compare les images (basée sur le pHash) pour éliminer les doublons parmi l'ensemble des images.
         Si deux images ont une distance pHash < phash_threshold, elles sont considérées comme
@@ -68,48 +66,66 @@ class ImageCleaner:
         
         :param images_with_quality: Liste de tuples (chemin, qualité) pour toutes les images.
         :param phash_threshold: Seuil de distance pHash pour considérer deux images comme identiques.
+        :param batch_size: Taille du lot d'images à traiter à chaque itération
         :return: Tuple (unique, duplicates) : listes des chemins d'images uniques et des doublons.
         """
         unique = []      
         duplicates = []
 
-        i = 0
+        total_images = len(images_with_quality)
+
         start_all = time.time()
-        for path, quality in images_with_quality:
-            i += 1
-            start_one = time.time()
-            #print(f"Etape [4/5] : [{i}/{len(images_with_quality)}]\n")
-            img1 = self.read_and_resize(path)
-            if img1 is None:
-                continue
-            is_duplicate = False
-
-            for idx, (unique_path, unique_quality) in enumerate(unique):
-                img2 = self.read_and_resize(unique_path)
-                if img2 is None:
-                    continue
-                distance = self.calculate_phash_distance(img1, img2)
-                if distance < phash_threshold:
-                    if quality > unique_quality:
-                        duplicates.append(unique_path)
-                        unique[idx] = (path, quality)
-                    else:
-                        duplicates.append(path)
-                    is_duplicate = True
-                    break
+        
+        for batch_start in range(0, total_images, batch_size):
+            batch_end = min(batch_start + batch_size, total_images)
+            current_batch = images_with_quality[batch_start:batch_end]
             
-            if not is_duplicate:
-                unique.append((path, quality))
+            print(f"Traitement du lot d'images {batch_start+1}-{batch_end} sur {total_images}")
+            batch_start_time = time.time()
+            
+            for path, quality in current_batch:
+                img1 = self.read_and_resize(path)
+                if img1 is None:
+                    continue
+                    
+                is_duplicate = False
+                
+                # Vérification des doublons parmi les images déjà conservées
+                for idx, (unique_path, unique_quality) in enumerate(unique):
+                    img2 = self.read_and_resize(unique_path)
+                    if img2 is None:
+                        continue
+                        
+                    distance = self.calculate_phash_distance(img1, img2)
+                    if distance < phash_threshold:
+                        # On garde l'image avec la meilleure qualité
+                        if quality > unique_quality:
+                            duplicates.append(unique_path)
+                            unique[idx] = (path, quality)
+                        else:
+                            duplicates.append(path)
 
-            end_one = time.time()
-            print(f"Temps écoulé : {end_one - start_one:.2f} s\n")
-
+                        is_duplicate = True
+                        break
+                
+                # Si ce n'est pas un doublon, on l'ajoute à la liste d'images uniques
+                if not is_duplicate:
+                    unique.append((path, quality))
+            
+            batch_end_time = time.time()
+            print(f"Lot traité en {batch_end_time - batch_start_time:.2f} secondes")
+            print(f"Images uniques trouvées jusqu'à présent: {len(unique)}")
+            print(f"Doublons trouvés jusqu'à présent: {len(duplicates)}\n")
+        
         end_all = time.time()
-        print(f"Temps total pour le traitement des doublons : {end_all - start_all:.2f} secondes")
-
+        print("Unique :", unique)
+        print("Doublons :", duplicates)
+        print(f"Temps total pour le traitement des doublons: {end_all - start_all:.2f} secondes")
+        print(f"Images uniques: {len(unique)}, Doublons: {len(duplicates)}")
+        
         return unique, duplicates
     
-    def clean_cluster(self, image_paths, blur_threshold=100.0, phash_threshold=20):
+    def clean_cluster(self, image_paths, blur_threshold=50.0, phash_threshold=20):
         """
         Nettoie un cluster d'images en supprimant les doublons et les images floues.
         
@@ -127,7 +143,7 @@ class ImageCleaner:
         
         # Suppression des doublons
         #print("ETAPE 4 - Suppression des doublons :\n")
-        unique, duplicates = self.remove_duplicates(images_with_quality, phash_threshold=phash_threshold)
+        unique, duplicates = self.remove_duplicates(images_with_quality, phash_threshold=phash_threshold, batch_size=10)
         
         # Filtrage des images floues
         retained_images = [path for (path, quality) in unique if quality > blur_threshold]

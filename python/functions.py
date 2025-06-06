@@ -64,6 +64,11 @@ def create_arborescence_from_csv(csv_file):
         return None
 
     for row in data.itertuples():
+        if pd.isna(row.date_time) or not isinstance(row.date_time, str):
+            # Utiliser une valeur par défaut si date_time n'est pas valide
+            tree_path = f"Non_daté/{row.categories}"
+            tree_paths.append(tree_path)
+            continue
 
         date_time = row.date_time.split(":")
         year = int(date_time[0])

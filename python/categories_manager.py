@@ -58,6 +58,7 @@ class CategoriesManager(EmbeddingsManager):
 
     def get_cluster_images(self, image_paths):
         image_paths = self.image_cleaner.clean_cluster(image_paths)
+        print(image_paths)
         if not image_paths:
             print("Aucune image retenue après nettoyage!")
             return []
@@ -112,7 +113,7 @@ class CategoriesManager(EmbeddingsManager):
 
         for cat, sim in zip(predefined_categories, normalized_similarities):
             print(f"{cat}: {sim:.3f}")
-        print("\n")
+        #print("\n")
 
         # Assignation de la catégorie à toutes les images du cluster
         # Vérifier si "Autres" est suffisamment proche du meilleur score
@@ -156,7 +157,7 @@ class CategoriesManager(EmbeddingsManager):
         for day, day_clusters in clusters_by_day.items():
             for cluster_name, image_paths in day_clusters.items():
                 cluster_counter += 1
-                print(f"Etape [3/4] : [{cluster_counter}/{total_clusters}]")
+                print(f"\nEtape [3/4] : [{cluster_counter}/{total_clusters}]")
                 print(f"Images du cluster : {image_paths}")
 
                 if not image_paths:
@@ -195,25 +196,13 @@ class CategoriesManager(EmbeddingsManager):
                     if best_cat == "Autres" or is_single_image:
                         category = f"Autres/{best_cat}" # Sous dossier dans "Autres" avec la catégorie précédemment attribuée
 
-                    print(f"Cluster {cluster_counter}: catégorie attribuée = {category} (score: {best_cat_score:.3f})")
+                    print(f"Cluster {cluster_counter}: catégorie attribuée = {category} (score: {best_cat_score:.3f})\n")
 
                     # Mise à jour du DataFrame
                     for path in image_paths:
                         self.df.loc[self.df["path"] == path, "categories"] = category
 
         return self.df
-    
-    def create_autres_subfolders(self, target_directory):
-        mask = self.df["categories"].notna() & self.df["categories"].astype(str).str.startswith("Autres/")
-        autres_categories = self.df[mask]["categories"].unique()
-        
-        for category in autres_categories:
-            subfolder = category
-            target_dir = os.path.join(target_directory, subfolder)
-            
-            # Créer le répertoire s'il n'existe pas
-            os.makedirs(target_dir, exist_ok=True)
-            print(f"Création du sous-dossier: {target_dir}")
 
     def pipeline(self, starting_time):
         #print("RECHERCHE DES CATEGORIES AVEC CLUSTERING...")
@@ -223,5 +212,5 @@ class CategoriesManager(EmbeddingsManager):
         print(f"Temps de recherche des catégories : {categories_time:.2f} secondes")
 
         self.dataframe_manager.df = self.df
-        print(f"ETAPE 4 - Copie des images triées :\n")
+        print(f"\nETAPE 4 - Copie des images triées :\n")
         self.dataframe_manager.save_to_csv(self.directory + ".csv")
