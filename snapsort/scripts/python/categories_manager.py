@@ -110,9 +110,9 @@ class CategoriesManager(EmbeddingsManager):
                 best_cat_score = second_best_score
 
 
-        for cat, sim in zip(predefined_categories, normalized_similarities):
+        '''for cat, sim in zip(predefined_categories, normalized_similarities):
             print(f"{cat}: {sim:.3f}")
-        print("\n")
+        print("\n")'''
 
         # Assignation de la catégorie à toutes les images du cluster
         # Vérifier si "Autres" est suffisamment proche du meilleur score
