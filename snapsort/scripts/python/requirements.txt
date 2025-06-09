@@ -11,5 +11,3 @@ reverse_geocoder
 langchain
 langchain-chroma
 langchain-ollama
-pillow
-colorama

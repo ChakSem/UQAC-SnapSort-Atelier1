@@ -1,20 +1,16 @@
-import os
 import time
-from contextlib import closing
-import sqlite3
 import base64
 from io import BytesIO
 from PIL import Image
 import uuid
-from colorama import Fore, Style
-from langchain.schema import AIMessage
 from langchain_core.documents import Document
-from langchain_ollama import ChatOllama, OllamaEmbeddings
+from langchain_ollama import ChatOllama
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
-from langchain_chroma import Chroma
+
 from image_details import ImageDetails
-import sys
+from functions import get_image_paths
+from chroma_db import ChromaDatabase
 
 class LLMCall:
     def __init__(self, model="gemma3"):
@@ -82,32 +78,82 @@ class LLMCall:
 
         return [system_message, human_message]
     
-    
+
     def analyze_image(self, image_file):
         image_b64 = self.encode_image(image_file)
 
-        detected_objects = self.object_chain.invoke ({"text":"""Identify objects in the image. Return a json list of json items of the detected objects. 
-                Include only the names of each object and a short description of the object. 
-                The field names should be 'name' and 'description' respectively.""", 
-                "image": image_b64, 
-                "system_message_text": self.get_object_system_message()})
+        try:
+            detected_objects = self.object_chain.invoke ({"text":"""Identify objects in the image. Return a json list of json items of the detected objects. 
+                    Include only the names of each object and a short description of the object. 
+                    The field names should be 'name' and 'description' respectively.""", 
+                    "image": image_b64, 
+                    "system_message_text": self.get_object_system_message()})
+        except Exception as e:
+            print(f"Erreur : {e}. Nouvelle tentative...")
+            return -1
         
-        image_description = self.vision_chain.invoke ({"text": "Describe the image in as much detail as possible.", 
-                "image": image_b64, 
-                "system_message_text": self.get_vision_system_message()})
-        
+        try:
+            image_description = self.vision_chain.invoke ({"text": "Describe the image in as much detail as possible.", 
+                    "image": image_b64, 
+                    "system_message_text": self.get_vision_system_message()})
+        except Exception as e:
+            print(f"Erreur : {e}. Nouvelle tentative...")
+            return -1
+
         image_details = ImageDetails(image_file, detected_objects, image_description, self.model)
-        doc = Document(id=str(uuid.uuid4()), page_content=image_details.get_page_content(), metadata=image_details.to_dict())
-        #db.add_documents([doc])
+        
         return image_details
+    
+    def pipeline_calls(self, image_paths, database):
+
+        processed_files = database.get_processed_files()
+
+        counter = 1
+        for image_path in image_paths:
+            print('---------------------------------------------------------------')
+            print(f'{counter} / {len(image_paths)}')
+            print(image_path)
+            print('\n\n')
+            if image_path in processed_files:
+                print(f'FILE ALREADY PROCESSED, SKIPPED')
+            else:
+                image_details = self.analyze_image(image_path)
+                print(image_details)
+                doc = Document(id=str(uuid.uuid4()), page_content=image_details.get_page_content(), metadata=image_details.to_dict())
+                database.db.add_documents([doc])
+            counter += 1
+
+def process_images(directory):
+    image_paths = get_image_paths(directory)
+
+    image_model = "gemma3"
+    llm_call = LLMCall(model=image_model)
+
+    # Example usage
+    # image_file = r".\photos_final\20240902_150137.jpg" 
+    # image_details = llm_call.analyze_image(image_file)
+    # print(image_details)
+
+    llm_call.pipeline_calls(image_paths, database)
+
+    database.db.persist()
+
+def retrieve_images(database):
+    prompt = "fence"
+    nb_results = 1
+
+    database.get_similar_pictures(prompt, nb_results)
+
         
 
 if __name__== "__main__":
-    model = "gemma3"
-    llm_call = LLMCall(model=model)
+    directory = r".\temp"
+    emebdding_model = "mxbai-embed-large"
+    database = ChromaDatabase(embedding_model=emebdding_model)
 
-    # Example usage
-    image_file = r"C:\Users\elise\Documents\GitHub\UQAC-SnapSort-Atelier2\photos_final\20240902_150137.jpg" 
-    image_details = llm_call.analyze_image(image_file)
+    #process_images(directory)
+    retrieve_images(database)
+
     
-    print(image_details)  # Print the details of the analyzed image"""
+    
+      

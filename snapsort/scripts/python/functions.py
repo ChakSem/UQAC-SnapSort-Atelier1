@@ -21,6 +21,11 @@ def set_parser():
 
     return args
 
+def get_image_paths(directory):
+    allowed_extensions = {".jpg", ".jpeg", ".png"}
+    image_paths = [os.path.join(directory, filename) for filename in os.listdir(directory) if os.path.splitext(filename)[1].lower() in allowed_extensions]
+    return image_paths
+
 def get_season(month):
     if month in [12, 1, 2]:
         return "Hiver"
