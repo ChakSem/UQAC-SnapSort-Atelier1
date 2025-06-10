@@ -12,6 +12,7 @@ def set_parser():
     # Training arguments
     parser.add_argument('--directory', type=str, default="unsorted_images")
     parser.add_argument('--destination_directory', type=str, default="albums")
+    parser.add_argument('--copy_directory', type=str, default="all_images")
 
     args = parser.parse_args()
 
@@ -20,6 +21,31 @@ def set_parser():
     print("------------------------------------")
 
     return args
+
+def get_image_paths(directory, allowed_extensions=None):
+    if not allowed_extensions :
+        allowed_extensions=={".jpg", ".jpeg", ".png"}
+        image_paths = [os.path.join(directory, filename) for filename in os.listdir(directory) if os.path.splitext(filename)[1].lower() in allowed_extensions]
+    elif allowed_extensions == "All":
+        image_paths = [os.path.join(directory, filename) for filename in os.listdir(directory) if os.path.isfile(os.path.join(directory, filename))]
+    return image_paths
+
+def copy_all_images(source_directory, destination_directory):
+    if not os.path.exists(destination_directory):
+        os.makedirs(destination_directory)
+
+    image_paths = get_image_paths(source_directory, allowed_extensions="All")
+
+    for image_path in image_paths:
+        destination_path = os.path.join(destination_directory, os.path.basename(image_path))
+        shutil.copy(image_path, destination_path)
+        print(f"Copié : {image_path} -> {destination_path}")
+
+def empty_directory(directory):
+    if os.path.exists(directory):
+            shutil.rmtree(directory)
+    os.makedirs(directory, exist_ok=True)
+    
 
 def get_season(month):
     if month in [12, 1, 2]:
