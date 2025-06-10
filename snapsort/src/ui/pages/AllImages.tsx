@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import '../styles/components.css';
 import ImagesViewer from "../components/ImageViewer";
 import { MediaFile } from "../types/types";
+import SearchBar from "../components/SearchBar";
 
 const AllImages =() => {
     const [files, setFiles] = useState<MediaFile[]>([]);
@@ -30,8 +31,13 @@ const AllImages =() => {
 
 
     return (
-        <div className="all-images-container">
-            <ImagesViewer mediaFiles={files} />
+        <div className="all-images">
+            <div className="all-images-header">
+                <SearchBar />
+            </div>
+            <div className="container">
+                <ImagesViewer mediaFiles={files} />
+            </div>
         </div>
     );
 }
