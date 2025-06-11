@@ -24,8 +24,8 @@ def json_saving(similar_images):
 if __name__ == "__main__":
     args = set_parser_image_retrieval()
 
-    #prompt = args.prompt
-    prompt = "une randonnée avec des arbres jaunes et rouges"
+    prompt = args.prompt
+    # prompt = "une randonnée avec des arbres jaunes et rouges"
     database = ChromaDatabase()
 
     starting_time = time.time()

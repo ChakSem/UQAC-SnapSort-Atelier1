@@ -5,6 +5,11 @@ export interface RunPythonOptions {
   onLog: (data: string) => void;
 }
 
+export interface RunImageRetrievalOptions {
+  prompt: string;
+  onLog: (data: string) => void;
+}
+
 export interface SetupPythonSchema {
   onLog: (data: string) => void;
 }

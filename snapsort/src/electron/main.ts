@@ -3,13 +3,14 @@ import http from 'http';
 import { startImageTransferService, stopImageTransferService, generateTransferQRCode, transferEvents } from './server.js';
 import path from 'path';
 import fs from 'fs';
-import { isDev, cleanTempFolder, generateThumbnail } from './util.js';
+import { isDev, cleanTempFolder, generateThumbnail, lireListeImages } from './util.js';
 import { getPreloadPath } from './pathResolver.js';
 import { startHotspot, getWifiInfo, extractWifiInfo, getPhoneIpAddress, extractIpAddress } from './connexion.js';
 import { store, globalStore } from "./store.js";
 import { getFolders } from './folderManager.js';
-import { runPythonFile } from './python/runMain.js';
+import { runImageRetrieval, runPythonFile } from './python/runMain.js';
 import { setupPythonEnv } from './python/setupPythonEnv.js';
+import { getScriptsPath } from './pathResolver.js';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -98,6 +99,41 @@ ipcMain.handle('run-python', async (event) => {
   // Set global variable AIProcessing to false
   globalStore.set("AIProcessing", false);
   win.webContents.send('python-end');
+});
+
+// Execute Python Script Handler
+ipcMain.handle('run-image-retrieval', async (event, prompt: string) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return { error: "No window found" };
+
+  // Define the log/error forwarding functions ONCE
+  const forwardLog = (msg: string) => win.webContents.send('log', msg);
+
+  // Vérifier que l'environnement Python est prêt
+  await setupPythonEnv({ onLog: forwardLog });
+
+  let output = await runImageRetrieval({
+    prompt: prompt,
+    onLog: forwardLog,
+  });
+
+  // Get temp files
+  const tempFilesPath = getScriptsPath("temp_files");
+  //check if directory exists
+  if (!fs.existsSync(tempFilesPath)) {
+    return { error: "The directory 'temp_files' has not been found" };
+  }
+
+  // Get json file
+  const jsonPath = path.join(tempFilesPath, "similar_images.json");
+  if (!fs.existsSync(jsonPath)) {
+    return { error: "No json file found" };
+  }
+
+  // Read the json file
+  const ImagesList = lireListeImages(jsonPath);
+
+  return ImagesList;
 });
 
 // Settings Handler

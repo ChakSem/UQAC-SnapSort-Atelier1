@@ -553,6 +553,7 @@
 .all-images-header {
   padding: 20px;
   width: 80%;
+  
 }
 
 .all-images-header input{
@@ -561,4 +562,18 @@
   border: 1px solid var(--third-bg);
   width: 100%;
   font-size: 15px;
+}
+
+.all-images-header-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+}
+
+.all-images-header span{
+  padding: 15px;
+  margin: 0px;
+  font-size: 1.2rem;
+  font-weight: bold;
 }

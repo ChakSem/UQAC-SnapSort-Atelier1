@@ -5,6 +5,7 @@ let logHandler: ((event: any, msg: string) => void) | null = null;
 contextBridge.exposeInMainWorld('electron', {
     // Python script
     runPython: () => ipcRenderer.invoke('run-python'),
+    runImageRetrival: (prompt: string) => ipcRenderer.invoke('run-image-retrieval', prompt),
     onPythonLog: (callback: (msg: string) => void) => {
         logHandler = (_, msg) => callback(msg);
         ipcRenderer.on("log", logHandler);

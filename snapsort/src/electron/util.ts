@@ -82,3 +82,10 @@ export function execPowerShell(command: string, errorContext: string): Promise<s
         });
     });
 }
+
+export function lireListeImages(cheminFichier: string): string[] {
+  const contenu = fs.readFileSync(cheminFichier, 'utf-8');
+  const donnees = JSON.parse(contenu) as { image_name: string; score: number }[];
+
+  return donnees.map(item => item.image_name);
+}
