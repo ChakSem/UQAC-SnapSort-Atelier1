@@ -34,27 +34,26 @@ class LLMCall:
     
     def get_vision_system_message(self):
         system_message_text = '''
-    You're an expert image and photo analyzer.
-    You are very perceptive in analyzing images and photos. 
-    You possess excelent vision. 
-    Do not read any text unless it is the most prominent in the image. 
-    Your description should be neutral in tone.
-    '''
+    Vous êtes un expert en analyse d'images et de photos.
+    Vous êtes très perspicace dans l'analyse des images et des photos.
+    Vous possédez une excellente vision.
+    Votre description doit être neutre.
+'''
         return system_message_text
 
     def get_object_system_message(self):
         system_message_text = '''
-    You're an expert image and photo analyzer.
-    You are very perceptive in analyzing images and photos. 
-    You possess excelent vision. 
-    Do not read any text unless it is the most prominent in the image. 
-    You should always output your results in json format, for example:
+Vous êtes un expert en analyse d'images et de photos.
+Vous êtes très perspicace dans l'analyse des images et des photos.
+Vous possédez une excellente vision.
+N'utilise pas d'apastrophe car cela poserait problème pour le json.
+Vous devez toujours donner vos résultats au format json, par exemple :
 
-    [
-    {'name': 'a detected object', 'description': 'the detected object's description'},
-    {'name': 'another detected object', 'description': 'the other detected object's description'}
-    ]
-    '''
+[
+{'name': 'un objet détecté', 'description': "la description de l objet détecté"},
+{'name': 'un autre objet détecté', 'description': "la description de l autre objet détecté"}
+]
+'''
         return system_message_text
     
     def prompt_func(self, data):
@@ -79,26 +78,46 @@ class LLMCall:
         return [system_message, human_message]
     
 
-    def analyze_image(self, image_file):
-        image_b64 = self.encode_image(image_file)
-
+    def call_function(self, chain, prompt, image):
+        if chain == "object":
+            llm_chain = self.object_chain
+            system_message = self.get_object_system_message()
+        elif chain == "description":
+            llm_chain = self.vision_chain
+            system_message = self.get_vision_system_message()
+        else : 
+            print("Mauvaise commande, utiliser 'object' ou 'description' \n") 
+            return -2
+        
         try:
-            detected_objects = self.object_chain.invoke ({"text":"""Identify objects in the image. Return a json list of json items of the detected objects. 
-                    Include only the names of each object and a short description of the object. 
-                    The field names should be 'name' and 'description' respectively.""", 
-                    "image": image_b64, 
-                    "system_message_text": self.get_object_system_message()})
+            llm_response = llm_chain.invoke ({"text":prompt, 
+                    "image": image, 
+                    "system_message_text": system_message})
         except Exception as e:
             print(f"Erreur : {e}. Nouvelle tentative...")
             return -1
         
-        try:
-            image_description = self.vision_chain.invoke ({"text": "Describe the image in as much detail as possible.", 
-                    "image": image_b64, 
-                    "system_message_text": self.get_vision_system_message()})
-        except Exception as e:
-            print(f"Erreur : {e}. Nouvelle tentative...")
-            return -1
+        return llm_response
+
+    def analyze_image(self, image_file):
+        image_b64 = self.encode_image(image_file)
+
+        object_prompt = """Identifie les objets présents dans l'image. Retourne une liste json d'éléments json correspondant aux objets détectés. 
+Inclue uniquement le nom de chaque objet et une courte description de l'objet. 
+Les champs doivent s'appeler 'name' et 'description' respectivement."""
+
+        while True : 
+            detected_objects = self.call_function("object", object_prompt, image_b64)
+            if detected_objects == -1 :
+                object_prompt = object_prompt + " Ta réponse doit être au format json, fais attention à ne pas utiliser d'apostrophes dans le texte des champs."
+            else :
+                break
+
+        description_prompt = "Décris l'image aussi précisément que possible."
+        while True : 
+            image_description = self.call_function("description", description_prompt, image_b64)
+            if image_description != -1 :
+                break
 
         image_details = ImageDetails(image_file, detected_objects, image_description, self.model)
         
@@ -113,7 +132,7 @@ class LLMCall:
             print('---------------------------------------------------------------')
             print(f'{counter} / {len(image_paths)}')
             print(image_path)
-            print('\n\n')
+            print('\n')
             if image_path in processed_files:
                 print(f'FILE ALREADY PROCESSED, SKIPPED')
             else:
@@ -122,6 +141,8 @@ class LLMCall:
                 doc = Document(id=str(uuid.uuid4()), page_content=image_details.get_page_content(), metadata=image_details.to_dict())
                 database.db.add_documents([doc])
             counter += 1
+
+
 
 def process_images(directory):
     image_paths = get_image_paths(directory)
@@ -136,24 +157,18 @@ def process_images(directory):
 
     llm_call.pipeline_calls(image_paths, database)
 
-    database.db.persist()
-
-def retrieve_images(database):
-    prompt = "fence"
-    nb_results = 1
-
-    database.get_similar_pictures(prompt, nb_results)
-
-        
+       
 
 if __name__== "__main__":
-    directory = r".\temp"
-    emebdding_model = "mxbai-embed-large"
-    database = ChromaDatabase(embedding_model=emebdding_model)
+    directory = r".\photos_final"
+    embedding_model = "mxbai-embed-large"
+    database = ChromaDatabase(embedding_model=embedding_model, new=False)
 
-    #process_images(directory)
-    retrieve_images(database)
+    starting_time = time.time()
+    process_images(directory)
+    ending_time = time.time()
+    print(f"Temps total pour traiter les images: {ending_time - starting_time:.2f} sec")
 
-    
-    
-      
+
+
+

@@ -5,13 +5,13 @@ import sys
 sys.stdout.reconfigure(line_buffering=True)
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 
-from functions import create_category_folders_from_csv, create_arborescence_from_csv, set_parser, copy_all_images, empty_directory
+from functions import create_category_folders_from_csv, create_arborescence_from_csv, set_parser_main, copy_all_images, empty_directory
 from categories_manager import CategoriesManager
 
 CLEANING = False
 
 if __name__ == "__main__":
-    args = set_parser()
+    args = set_parser_main()
     directory = args.directory
     destination_directory = args.destination_directory
 
