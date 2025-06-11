@@ -56,17 +56,23 @@ class CategoriesManager(EmbeddingsManager):
 
         return en_categories, predefined_categories
 
-    def get_cluster_images(self, image_paths):
-        image_paths = self.image_cleaner.clean_cluster(image_paths)
-        if not image_paths:
-            print("Aucune image retenue après nettoyage!")
-            return []
+    def get_cluster_images(self, image_paths, duplicates_to_remove):
+        # Obtenir les images nettoyées (sans doublons ni floues)
+        cleaned_paths = self.image_cleaner.clean_cluster(image_paths)
+        print(f"Images après nettoyage : {cleaned_paths}")
         
-        # Encodage par lots des images du cluster
-        cluster_images = []
+        if not cleaned_paths:
+            print("Aucune image retenue après nettoyage!")
+            # Marquer toutes les images du cluster comme doublons à éliminer
+            duplicates_to_remove.extend(image_paths)
+                
+        # Identifier les doublons pour ce cluster
+        removed_images = set(image_paths) - set(cleaned_paths)
+        duplicates_to_remove.extend(removed_images)
 
-        # Chargement des images du cluster
-        for path in image_paths:
+        # Charger les images nettoyées
+        cluster_images = []
+        for path in cleaned_paths:
             try:
                 image = Image.open(path).convert("RGB")
                 cluster_images.append(image)
@@ -74,7 +80,7 @@ class CategoriesManager(EmbeddingsManager):
                 print(f"Erreur lors du chargement de l'image {path}: {e}")
                 continue
 
-        return cluster_images
+        return cluster_images, duplicates_to_remove
 
     def best_cluster_category(self, all_embeddings, category_embeddings, predefined_categories, threshold=0.10):
         cluster_embeddings = np.vstack(all_embeddings)
@@ -140,6 +146,9 @@ class CategoriesManager(EmbeddingsManager):
         self.df = clustered_df
         #print(f"Clustering terminé: {len(clusters_by_day)} jours traités")
 
+        # Liste pour suivre les doublons à éliminer
+        duplicates_to_remove = []
+
         # Encodage des catégories
         text_inputs = self.clip_processor(text=en_categories, return_tensors="pt", padding=True).to(self.device)
         with torch.no_grad():
@@ -156,7 +165,7 @@ class CategoriesManager(EmbeddingsManager):
         for day, day_clusters in clusters_by_day.items():
             for cluster_name, image_paths in day_clusters.items():
                 cluster_counter += 1
-                print(f"Etape [3/4] : [{cluster_counter}/{total_clusters}]")
+                print(f"\nEtape [3/4] : [{cluster_counter}/{total_clusters}]")
                 print(f"Images du cluster : {image_paths}")
 
                 if not image_paths:
@@ -164,10 +173,10 @@ class CategoriesManager(EmbeddingsManager):
 
                 #print(f"\nTraitement du cluster {cluster_name} avec {len(image_paths)} images")
 
-                cluster_images = self.get_cluster_images(image_paths)
+                cluster_images, duplicates_to_remove = self.get_cluster_images(image_paths, duplicates_to_remove)
                 if not cluster_images:
                     continue
-
+    
                 # Traitement des images par lots pour éviter les problèmes de mémoire
                 all_embeddings = []
                 for i in range(0, len(cluster_images), batch_size):
@@ -195,11 +204,16 @@ class CategoriesManager(EmbeddingsManager):
                     if best_cat == "Autres" or is_single_image:
                         category = f"Autres/{best_cat}" # Sous dossier dans "Autres" avec la catégorie précédemment attribuée
 
-                    print(f"Cluster {cluster_counter}: catégorie attribuée = {category} (score: {best_cat_score:.3f})")
+                    print(f"Cluster {cluster_counter}: catégorie attribuée = {category} (score: {best_cat_score:.3f})\n")
 
                     # Mise à jour du DataFrame
                     for path in image_paths:
                         self.df.loc[self.df["path"] == path, "categories"] = category
+
+        # Supprimer les doublons du DataFrame
+        if duplicates_to_remove:
+            print(f"Suppression de {len(duplicates_to_remove)} doublons du DataFrame final")
+            self.df = self.df[~self.df["path"].isin(duplicates_to_remove)]
 
         return self.df
 
