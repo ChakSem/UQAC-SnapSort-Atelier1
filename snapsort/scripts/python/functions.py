@@ -24,7 +24,7 @@ def set_parser():
 
 def get_image_paths(directory, allowed_extensions=None):
     if not allowed_extensions :
-        allowed_extensions=={".jpg", ".jpeg", ".png"}
+        allowed_extensions={".jpg", ".jpeg", ".png"}
         image_paths = [os.path.join(directory, filename) for filename in os.listdir(directory) if os.path.splitext(filename)[1].lower() in allowed_extensions]
     elif allowed_extensions == "All":
         image_paths = [os.path.join(directory, filename) for filename in os.listdir(directory) if os.path.isfile(os.path.join(directory, filename))]
