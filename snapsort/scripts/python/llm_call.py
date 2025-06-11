@@ -3,6 +3,7 @@ import base64
 from io import BytesIO
 from PIL import Image
 import uuid
+import os
 from langchain_core.documents import Document
 from langchain_ollama import ChatOllama
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -129,11 +130,12 @@ Les champs doivent s'appeler 'name' et 'description' respectivement."""
 
         counter = 1
         for image_path in image_paths:
+            image_name = os.path.basename(image_path)
             print('---------------------------------------------------------------')
             print(f'{counter} / {len(image_paths)}')
-            print(image_path)
+            print(image_name)
             print('\n')
-            if image_path in processed_files:
+            if image_name in processed_files:
                 print(f'FILE ALREADY PROCESSED, SKIPPED')
             else:
                 image_details = self.analyze_image(image_path)
@@ -160,7 +162,7 @@ def process_images(directory):
        
 
 if __name__== "__main__":
-    directory = r".\photos_final"
+    directory = r"..\photos_final"
     embedding_model = "mxbai-embed-large"
     database = ChromaDatabase(embedding_model=embedding_model, new=False)
 

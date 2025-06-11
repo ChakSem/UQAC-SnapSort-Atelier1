@@ -5,7 +5,7 @@ import os
 from functions import set_parser_image_retrieval
 from chroma_db import ChromaDatabase
 
-DIRECTORY_PATH = "./snapsort/scripts/temp_files"
+DIRECTORY_PATH = "./scripts/temp_files"
 
 def json_saving(similar_images):
     images_to_save = [
