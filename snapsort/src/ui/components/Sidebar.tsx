@@ -7,6 +7,7 @@ import iconSettings from '../assets/icon_settings.png';
 import iconUser from '../assets/icon_user.png';
 import iconUnsortedImages from '../assets/icon_unsorted_images.png';
 import iconWifi from '../assets/icon_wifi.png';
+import iconAllImages from '../assets/icon_all_images.png';
 
 import { NavBarItemProps, BottomItemProps } from '../types/interfaces';
 
@@ -45,7 +46,12 @@ const Sidebar = () => {
             redirectTo="/albums"
           />
           <NavBarItem
-            label="Images non triées"
+            label="Toutes les images"
+            imageUrl={iconAllImages}
+            redirectTo="/all-images"
+          />
+          <NavBarItem
+            label="Images transférées"
             imageUrl={iconUnsortedImages}
             redirectTo="/unsorted-images"
           />

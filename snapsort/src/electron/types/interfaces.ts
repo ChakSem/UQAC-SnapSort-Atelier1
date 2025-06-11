@@ -1,6 +1,7 @@
 export interface RunPythonOptions {
   directory: string;
   destination_directory: string;
+  copy_directory: string;
   onLog: (data: string) => void;
 }
 

@@ -4,7 +4,7 @@ import { spawn } from 'child_process';
 import { pythonScript, pythonPath } from './paths.js';
 import { RunPythonOptions } from '../types/interfaces.js';
 
-export const runPythonFile = ({ directory, destination_directory, onLog }: RunPythonOptions) => {
+export const runPythonFile = ({ directory, destination_directory, copy_directory, onLog }: RunPythonOptions) => {
   return new Promise((resolve, reject) => {
 
     onLog('[COMMENT]: Lancement du script Python...');
@@ -19,6 +19,7 @@ export const runPythonFile = ({ directory, destination_directory, onLog }: RunPy
       pythonScript,
       '--directory', directory,
       '--destination_directory', destination_directory,
+      '--copy_directory', copy_directory
     ];
 
     // Run the Python script

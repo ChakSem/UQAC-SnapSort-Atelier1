@@ -34,6 +34,10 @@ nextSteps.txt
 *.png
 *.jpg
 
+# Sauf celles dans snapsort/src/ui/assets
+!snapsort/src/ui/assets/*.png
+!snapsort/src/ui/assets/*.jpg
+
 # Created csv
 *.csv
 
@@ -41,5 +45,6 @@ nextSteps.txt
 __pycache__/
 python-3*/
 
-# virtual env
+#virtual env
 .venv
+venv

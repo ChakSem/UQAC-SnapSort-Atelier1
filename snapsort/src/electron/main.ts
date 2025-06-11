@@ -72,17 +72,26 @@ ipcMain.handle('run-python', async (event) => {
     fs.mkdirSync(albumsPath, { recursive: true });
   }
 
+  // Vérifier que le dossier "all_images" existe
+  const allImagesPath = path.join(rootPath, 'all_images');
+  if (!fs.existsSync(allImagesPath)) {
+    // Si le dossier n'existe pas, le créer
+    fs.mkdirSync(allImagesPath, { recursive: true });
+  }
+
   // Vérifier que l'environnement Python est prêt
   await setupPythonEnv({ onLog: forwardLog });
 
   // Exécuter le script Python
   forwardLog("[COMMENT]: unsortedImagesPath:" + unsortedImagesPath);
   forwardLog("[COMMENT]: albumsPath: " + albumsPath);
+  forwardLog("[COMMENT]: allImagesPath: " + allImagesPath);
   forwardLog("[COMMENT]: Running Python script...");
 
   await runPythonFile({
     directory: unsortedImagesPath,
     destination_directory: albumsPath,
+    copy_directory: allImagesPath,
     onLog: forwardLog,
   });
 
