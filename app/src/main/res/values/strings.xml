@@ -1,3 +1,40 @@
 <resources>
     <string name="app_name">SnapSort</string>
+    <string name="app_description">Organisez vos photos intelligemment</string>
+    
+    <!-- Navigation -->
+    <string name="nav_home">Accueil</string>
+    <string name="nav_connection">Connexion</string>
+    <string name="nav_selection">Sélection</string>
+    <string name="nav_transfer">Transfert</string>
+    <string name="nav_tutorial">Tutoriel</string>
+    
+    <!-- Permissions -->
+    <string name="permission_camera_title">Permission caméra</string>
+    <string name="permission_camera_message">L\'accès à la caméra est nécessaire pour scanner les codes QR WiFi.</string>
+    <string name="permission_storage_title">Permission stockage</string>
+    <string name="permission_storage_message">L\'accès aux photos est nécessaire pour sélectionner et transférer vos images.</string>
+    <string name="permission_location_title">Permission localisation</string>
+    <string name="permission_location_message">L\'accès à la localisation est nécessaire pour la connexion WiFi sur Android 10+.</string>
+    
+    <!-- Error messages -->
+    <string name="error_network_unavailable">Réseau non disponible</string>
+    <string name="error_server_not_found">Serveur non trouvé</string>
+    <string name="error_transfer_failed">Échec du transfert</string>
+    <string name="error_permission_denied">Permission refusée</string>
+    <string name="error_unknown">Erreur inconnue</string>
+    
+    <!-- Success messages -->
+    <string name="success_connected">Connexion réussie</string>
+    <string name="success_transfer_complete">Transfert terminé</string>
+    
+    <!-- Common actions -->
+    <string name="action_retry">Réessayer</string>
+    <string name="action_cancel">Annuler</string>
+    <string name="action_continue">Continuer</string>
+    <string name="action_skip">Ignorer</string>
+    <string name="action_next">Suivant</string>
+    <string name="action_previous">Précédent</string>
+    <string name="action_close">Fermer</string>
+    <string name="action_accept">Accepter</string>
 </resources>
