@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import reverse_geocoder as rg
 
-def set_parser():
+def set_parser_main():
     parser = argparse.ArgumentParser()
 
     # Training arguments
@@ -45,7 +45,21 @@ def empty_directory(directory):
     if os.path.exists(directory):
             shutil.rmtree(directory)
     os.makedirs(directory, exist_ok=True)
-    
+
+def set_parser_image_retrieval():
+    parser = argparse.ArgumentParser()
+
+    # Training arguments
+    parser.add_argument('--prompt', type=str, default=" ")
+
+    args = parser.parse_args()
+
+    print("\n----------- Arguments --------------")
+    print(args)
+    print("------------------------------------")
+
+    return args
+
 
 def get_season(month):
     if month in [12, 1, 2]:
