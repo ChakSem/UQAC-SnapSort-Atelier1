@@ -60,6 +60,20 @@ def set_parser_image_retrieval():
 
     return args
 
+def set_parser_fill_database():
+    parser = argparse.ArgumentParser()
+
+    # Training arguments
+    parser.add_argument('--copy_directory', type=str, default="")
+
+    args = parser.parse_args()
+
+    print("\n----------- Arguments --------------")
+    print(args)
+    print("------------------------------------")
+
+    return args
+
 
 def get_season(month):
     if month in [12, 1, 2]:

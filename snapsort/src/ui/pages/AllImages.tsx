@@ -7,12 +7,13 @@ import anim_spinner from "../assets/anim_spinner.svg";
 
 const AllImages =() => {
     const [files, setFiles] = useState<MediaFile[]>([]);
-    const [aiProcessing, setAIProcessing] = useState(false);
+    const [aiSearching, setAISearching] = useState(false);
+    const [aiFillingDatabase, setAIFillingDatabase] = useState(false);
 
     // runPythonScript
     const runImageRetrival = async (prompt: string) => {
         // Change the UI state to indicate that AI processing is in progress
-        setAIProcessing(true);
+        setAISearching(true);
 
         // Call the Python script
         try {
@@ -25,7 +26,19 @@ const AllImages =() => {
             console.log(`Error: ${error}`);
         }
 
-        setAIProcessing(false);
+        setAISearching(false);
+    };
+
+    const runPythonFillDatabase = async () => {
+        setAIFillingDatabase(true);
+        // Call the Python script to fill the database
+        try {
+            await (window as any).electron.runPythonFillDatabase();
+            console.log("Database filled successfully.");
+        } catch (error) {
+            console.error(`Error filling database: ${error}`);
+        }
+        setAIFillingDatabase(false);
     };
 
     // Handler pour les logs Python
@@ -89,11 +102,18 @@ const AllImages =() => {
     return (
         <div className="all-images">
             <div className="all-images-header">
-                <SearchBar onSearch={runImageRetrival} />
-                {aiProcessing === true && (
+                <div className="all-images-header-search">
+                    <SearchBar onSearch={runImageRetrival} />
+                    <button onClick={runPythonFillDatabase}>
+                        Remplir
+                    </button>
+                </div>
+                {(aiSearching === true || aiFillingDatabase === true) && (
                     <div className="all-images-header-loading">
                         <img src={anim_spinner} alt="AI Processing" style={{ width: 32, height: 32 }} />
-                        <span className="ai-processing-text">Recherche des images en cours</span>
+                        <span className="ai-processing-text">
+                            {aiSearching ? "Recherche des images en cours" : "Remplissage de la base de données en cours"}
+                        </span>
                     </div>
                 )}
             </div>

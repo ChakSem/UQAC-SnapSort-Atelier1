@@ -552,16 +552,20 @@
 
 .all-images-header {
   padding: 20px;
-  width: 80%;
+  width: 90%;
   
+}
+
+.search-bar {
+  width: 100%;
 }
 
 .all-images-header input{
   padding: 10px;
   border-radius: 20px;
   border: 1px solid var(--third-bg);
-  width: 100%;
   font-size: 15px;
+  width: 90%;
 }
 
 .all-images-header-loading {
@@ -569,6 +573,19 @@
   align-items: center;
   justify-content: center;
   
+}
+
+.all-images-header-search {
+  display: flex;
+  align-items: center;
+  justify-content: right;
+}
+
+.all-images-header-search button{
+  border-radius: 20px;
+  border: none;
+  background-color: var(--third-button-bg);
+  color: white;
 }
 
 .all-images-header span{

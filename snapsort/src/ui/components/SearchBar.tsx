@@ -11,7 +11,7 @@ const SearchBar = ({ onSearch }: { onSearch: (prompt: string) => void }) => {
     };
 
     return (
-        <div>
+        <div className="search-bar">
             <input
                 type="text"
                 value={value}

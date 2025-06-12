@@ -8,7 +8,7 @@ import { getPreloadPath } from './pathResolver.js';
 import { startHotspot, getWifiInfo, extractWifiInfo, getPhoneIpAddress, extractIpAddress } from './connexion.js';
 import { store, globalStore } from "./store.js";
 import { getFolders } from './folderManager.js';
-import { runImageRetrieval, runPythonFile } from './python/runMain.js';
+import { runImageRetrieval, runPythonFile, runPythonFillDatabase } from './python/runMain.js';
 import { setupPythonEnv } from './python/setupPythonEnv.js';
 import { getScriptsPath } from './pathResolver.js';
 
@@ -112,7 +112,7 @@ ipcMain.handle('run-image-retrieval', async (event, prompt: string) => {
   // Vérifier que l'environnement Python est prêt
   await setupPythonEnv({ onLog: forwardLog });
 
-  let output = await runImageRetrieval({
+  await runImageRetrieval({
     prompt: prompt,
     onLog: forwardLog,
   });
@@ -134,6 +134,37 @@ ipcMain.handle('run-image-retrieval', async (event, prompt: string) => {
   const ImagesList = lireListeImages(jsonPath);
 
   return ImagesList;
+});
+
+ipcMain.handle('run-python-fill-database', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return { error: "No window found" };
+
+  // Define the log/error forwarding functions ONCE
+  const forwardLog = (msg: string) => win.webContents.send('log', msg);
+
+  // Récupérer le chemin du dossier principal
+  const rootPath = store.get("directoryPath") as string;
+  if (!rootPath) return { error: "No root directory path set" };
+
+  // Vérifier que le dossier "all_images" existe
+  const allImagesPath = path.join(rootPath, 'all_images');
+  if (!fs.existsSync(allImagesPath)) {
+    return { error: "No images to fill database: all_images folder not found" };
+  }
+
+  // vérifie l'installation de l'environnement Python
+  await setupPythonEnv({ onLog: forwardLog });
+
+  // Exécuter le script Python
+  forwardLog("[COMMENT]: allImagesPath: " + allImagesPath);
+  forwardLog("[COMMENT]: Running Python script to fill database...");
+
+  await runPythonFillDatabase({
+    copy_directory: allImagesPath,
+    onLog: forwardLog,
+  });
+
 });
 
 // Settings Handler

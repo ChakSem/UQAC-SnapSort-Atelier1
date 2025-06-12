@@ -10,7 +10,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 
 from image_details import ImageDetails
-from functions import get_image_paths
+from functions import get_image_paths, set_parser_fill_database
 from chroma_db import ChromaDatabase
 
 class LLMCall:
@@ -162,7 +162,8 @@ def process_images(directory):
        
 
 if __name__== "__main__":
-    directory = r"..\photos_final"
+    args = set_parser_fill_database()
+    directory = args.copy_directory
     embedding_model = "mxbai-embed-large"
     database = ChromaDatabase(embedding_model=embedding_model, new=False)
 

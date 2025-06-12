@@ -1,105 +1,86 @@
 import fs from 'fs';
-
 import { spawn } from 'child_process';
-import { pythonScript, pythonPath, pythonImageRetrievalScript } from './paths.js';
-import { RunImageRetrievalOptions, RunPythonOptions } from '../types/interfaces.js';
+import { pythonScript, pythonPath, pythonImageRetrievalScript, pythonFillDatabaseScript } from './paths.js';
+import { RunImageRetrievalOptions, RunPythonFillDatabaseOptions, RunPythonOptions } from '../types/interfaces.js';
 
-export const runPythonFile = ({ directory, destination_directory, copy_directory, onLog }: RunPythonOptions) => {
+// Helper function to run a Python script with arguments and logging
+function runPythonScriptWithArgs({
+  scriptPath,
+  args,
+  onLog,
+  scriptLabel = "Python script"
+}: {
+  scriptPath: string;
+  args: string[];
+  onLog: (msg: string) => void;
+  scriptLabel?: string;
+}) {
   return new Promise((resolve, reject) => {
-
-    onLog('[COMMENT]: Lancement du script Python...');
-    // Check if the Python script exists
-    if (!fs.existsSync(pythonScript)) {
-      return reject(`Le script Python n'existe pas à ce chemin : ${pythonScript}`);
+    onLog(`[COMMENT]: Starting ${scriptLabel}...`);
+    if (!fs.existsSync(scriptPath)) {
+      return reject(`The script does not exist at path: ${scriptPath}`);
     }
 
-    // Create the command to run the Python script
-    const args = [
-      '-u', // unbuffered
-      pythonScript,
-      '--directory', directory,
-      '--destination_directory', destination_directory,
-      '--copy_directory', copy_directory
-    ];
+    const fullArgs = ['-u', scriptPath, ...args];
+    onLog(`[COMMENT]: Running: ${pythonPath} ${fullArgs.join(' ')}`);
+    const pythonProcess = spawn(pythonPath, fullArgs, { stdio: ['ignore', 'pipe', 'pipe'] });
 
-    // Run the Python script
-    onLog(`[COMMENT]: Lancement du script Python : ${pythonPath} ${args.join(' ')}`);
-    const pythonProcess = spawn(pythonPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-
-    // ---- Handle the output and error streams ----
     pythonProcess.stdout.setEncoding('utf8');
     pythonProcess.stderr.setEncoding('utf8');
-
-    // Remove all listeners to avoid duplicate logs
     pythonProcess.stdout.removeAllListeners('data');
     pythonProcess.stderr.removeAllListeners('data');
 
-    // Stdout
     pythonProcess.stdout.on('data', (data) => {
       onLog(`[PYTHON]: ${data}`);
     });
 
-    // Stderr
     pythonProcess.stderr.on('data', (data) => {
       onLog(`[PYTHON ERROR]: ${data}`);
     });
 
-    // Handle process exit
     pythonProcess.on('close', (code) => {
       if (code === 0) {
-        resolve('Python script executed successfully');
+        resolve(`${scriptLabel} executed successfully`);
       } else {
         reject(`Python error with code: ${code}`);
       }
     });
+  });
+}
+
+// Now use the helper in your exported functions
+
+export const runPythonFile = ({ directory, destination_directory, copy_directory, onLog }: RunPythonOptions) => {
+  return runPythonScriptWithArgs({
+    scriptPath: pythonScript,
+    args: [
+      '--directory', directory,
+      '--destination_directory', destination_directory,
+      '--copy_directory', copy_directory
+    ],
+    onLog,
+    scriptLabel: "Python script"
   });
 };
 
 export const runImageRetrieval = ({ prompt, onLog }: RunImageRetrievalOptions) => {
-  return new Promise((resolve, reject) => {
-
-    onLog('[COMMENT]: Lancement du script Python...');
-    // Check if the Python script exists
-    if (!fs.existsSync(pythonImageRetrievalScript)) {
-      return reject(`Le script Python n'existe pas à ce chemin : ${pythonImageRetrievalScript}`);
-    }
-
-    // Create the command to run the Python script
-    const args = [
-      '-u', // unbuffered
-      pythonImageRetrievalScript,
+  return runPythonScriptWithArgs({
+    scriptPath: pythonImageRetrievalScript,
+    args: [
       '--prompt', prompt
-    ];
-
-    // Run the Python script
-    onLog(`[COMMENT]: Lancement du script Python : ${pythonPath} ${args.join(' ')}`);
-    const pythonProcess = spawn(pythonPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-
-    // ---- Handle the output and error streams ----
-    pythonProcess.stdout.setEncoding('utf8');
-    pythonProcess.stderr.setEncoding('utf8');
-
-    // Remove all listeners to avoid duplicate logs
-    pythonProcess.stdout.removeAllListeners('data');
-    pythonProcess.stderr.removeAllListeners('data');
-
-    // Stdout
-    pythonProcess.stdout.on('data', (data) => {
-      onLog(`[PYTHON]: ${data}`);
-    });
-
-    // Stderr
-    pythonProcess.stderr.on('data', (data) => {
-      onLog(`[PYTHON ERROR]: ${data}`);
-    });
-
-    // Handle process exit
-    pythonProcess.on('close', (code) => {
-      if (code === 0) {
-        resolve('Python script executed successfully');
-      } else {
-        reject(`Python error with code: ${code}`);
-      }
-    });
+    ],
+    onLog,
+    scriptLabel: "Image retrieval script"
   });
 };
+
+export const runPythonFillDatabase = ({ copy_directory, onLog }: RunPythonFillDatabaseOptions) => {
+  return runPythonScriptWithArgs({
+    scriptPath: pythonFillDatabaseScript,
+    args: [
+      '--copy_directory', copy_directory
+    ],
+    onLog,
+    scriptLabel: "Python fill database script"
+  });
+}

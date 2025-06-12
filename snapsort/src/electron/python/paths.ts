@@ -9,5 +9,6 @@ export const pythonDir = path.join(pythonRootDir, 'python-3.12.10-amd64');
 // Files
 export const pythonScript = path.join(pythonRootDir, 'main.py');
 export const pythonImageRetrievalScript = path.join(pythonRootDir, 'image_retrieval.py');
+export const pythonFillDatabaseScript = path.join(pythonRootDir, 'llm_call.py');
 export const requirementsPath = path.join(pythonRootDir, 'requirements.txt');
 export const pythonPath = path.join(pythonDir, 'python.exe');

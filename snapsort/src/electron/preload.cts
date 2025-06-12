@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electron', {
     // Python script
     runPython: () => ipcRenderer.invoke('run-python'),
     runImageRetrival: (prompt: string) => ipcRenderer.invoke('run-image-retrieval', prompt),
+    runPythonFillDatabase: () => ipcRenderer.invoke('run-python-fill-database'),
     onPythonLog: (callback: (msg: string) => void) => {
         logHandler = (_, msg) => callback(msg);
         ipcRenderer.on("log", logHandler);
