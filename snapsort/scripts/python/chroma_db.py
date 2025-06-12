@@ -6,21 +6,23 @@ import shutil
 import os
 
 class ChromaDatabase:
-    def __init__(self, db_name="db_photos", db_collection_name="photo_collection", embedding_model="mxbai-embed-large", path="./scripts/database", new=False):
+    def __init__(self, db_name="db_photos", db_collection_name="photo_collection", embedding_model="mxbai-embed-large", path="/scripts/database", new=False):
         if new : 
             self._clean_db(db_name=db_name)
         self.db_name = db_name
         self.db_collection_name = db_collection_name
-        self.path = path 
         os.makedirs(path, exist_ok=True)
-        print(f"{path}/{self.db_name}")
+        current_path = os.getcwd()
+        print(f"{current_path}{path}/{self.db_name}")
+        path_to_db = f"{current_path}{path}/{self.db_name}"
+        self.path = path_to_db
 
         self.db = Chroma(collection_name=self.db_collection_name,
                         embedding_function=OllamaEmbeddings(model=embedding_model),
-                        persist_directory=f"{self.path}/{self.db_name}")
+                        persist_directory=f"{self.path}")
 
     def get_processed_files(self):
-        db_file = f"{self.path}/{self.db_name}/chroma.sqlite3"
+        db_file = f"{self.path}/chroma.sqlite3"
         with closing(sqlite3.connect(db_file)) as connection:
             sql = "select string_value from embedding_metadata where key='image_name'"
             rows = connection.execute(sql).fetchall()

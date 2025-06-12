@@ -27,7 +27,7 @@ class ImageDetails:
         return retval
     
     def to_dict(self):
-        return {
+        dict =  {
             'image_name': self.image_name,
             'image_path': self.image_path,
             'date_time': self.date_time,
@@ -37,6 +37,14 @@ class ImageDetails:
             'description': self.description,
             'generated_with': self.generated_with
         }
+
+        filtered_dict = self.filter_complex_metadata(dict)
+
+        return filtered_dict
+    
+    def filter_complex_metadata(self, metadata: dict):
+        allowed_types = (str, int, float, bool)
+        return {k: v for k, v in metadata.items() if isinstance(v, allowed_types) and v is not None}
     
     def get_page_content(self):
         retval = f"{self.get_detected_objects_text()}\n\n{self.description}"

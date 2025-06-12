@@ -38,12 +38,16 @@ nextSteps.txt
 !snapsort/src/ui/assets/*.png
 !snapsort/src/ui/assets/*.jpg
 
-# Created csv
+# Temp files
 *.csv
+*.json
 
 # python
 __pycache__/
 python-3*/
+
+# Database files
+snapsort/scripts/database/
 
 #virtual env
 .venv
