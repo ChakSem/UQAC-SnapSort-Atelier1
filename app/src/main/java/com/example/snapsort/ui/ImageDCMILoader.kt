@@ -7,7 +7,6 @@ import android.os.Build
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -35,11 +34,9 @@ data class ImageItem(
     val name: String,
     val dateTaken: Long
 )
-@RequiresApi(Build.VERSION_CODES.R)
+
 @Composable
-fun ImageDCMILoader(
-    navController: NavController,
-) {
+fun ImageDCMILoader(navController: NavController) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var images by remember { mutableStateOf<List<ImageItem>>(emptyList()) }
@@ -53,12 +50,16 @@ fun ImageDCMILoader(
     // État du menu déroulant
     var folderMenuExpanded by remember { mutableStateOf(false) }
 
+    // Gestion des permissions selon la version Android
+    val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Manifest.permission.READ_MEDIA_IMAGES
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    }
+
     var hasPermission by remember {
         mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.READ_MEDIA_IMAGES
-            ) == PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
         )
     }
 
@@ -121,11 +122,14 @@ fun ImageDCMILoader(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text("Permission d'accès aux images nécessaire")
+                    Text(
+                        "Permission d'accès aux images nécessaire",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = {
-                            permissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+                            permissionLauncher.launch(permission)
                         }
                     ) {
                         Text("Demander la permission")
@@ -137,7 +141,13 @@ fun ImageDCMILoader(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Chargement des images...")
+                    }
                 }
             }
             errorMessage != null -> {
@@ -148,7 +158,11 @@ fun ImageDCMILoader(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text("Erreur: $errorMessage")
+                    Text(
+                        "Erreur: $errorMessage",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = {
@@ -177,10 +191,16 @@ fun ImageDCMILoader(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Dossier: ", modifier = Modifier.padding(end = 8.dp))
+                            Text(
+                                "Dossier: ", 
+                                modifier = Modifier.padding(end = 8.dp),
+                                style = MaterialTheme.typography.labelLarge
+                            )
 
                             Box {
-                                Button(onClick = { folderMenuExpanded = true }) {
+                                OutlinedButton(
+                                    onClick = { folderMenuExpanded = true }
+                                ) {
                                     Text(selectedFolder ?: "DCIM (racine)")
                                 }
 
@@ -214,29 +234,50 @@ fun ImageDCMILoader(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
-                            text = "Images: ${images.size} (limitées à 5)",
-                            style = MaterialTheme.typography.bodySmall
+                            text = "Images trouvées: ${images.size} (limitées à 10 pour l'aperçu)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
-                    // Grille d'images
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        contentPadding = PaddingValues(4.dp),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(images) { item ->
-                            Card(
-                                modifier = Modifier
-                                    .padding(4.dp)
-                                    .aspectRatio(1f)
-                            ) {
-                                Image(
-                                    painter = rememberAsyncImagePainter(item.uri.toUri()),
-                                    contentDescription = item.name,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
+                    if (images.isEmpty() && !isLoading) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "Aucune image trouvée dans ce dossier",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        // Grille d'images
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(3),
+                            contentPadding = PaddingValues(4.dp),
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            items(images) { item ->
+                                Card(
+                                    modifier = Modifier
+                                        .aspectRatio(1f),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                ) {
+                                    Image(
+                                        painter = rememberAsyncImagePainter(
+                                            model = item.uri.toUri(),
+                                            onError = { 
+                                                println("Erreur de chargement de l'image: ${item.uri}")
+                                            }
+                                        ),
+                                        contentDescription = item.name,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
                             }
                         }
                     }
@@ -258,30 +299,32 @@ private fun loadSubfolders(
                 val foldersList = mutableListOf<String>()
 
                 val projection = arrayOf(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
-                val selection = "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} LIKE 'DCIM/%' OR ${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} = 'DCIM'"
+                val selection = "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} LIKE 'DCIM%' OR " +
+                        "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} = 'Camera'"
 
                 context.contentResolver.query(
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                     projection,
                     selection,
                     null,
-                    null
+                    "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} ASC"
                 )?.use { cursor ->
                     val bucketColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
 
                     while (cursor.moveToNext()) {
                         val bucketName = cursor.getString(bucketColumn)
-                        if (bucketName != "DCIM" && !foldersList.contains(bucketName)) {
+                        if (bucketName != null && !foldersList.contains(bucketName)) {
                             foldersList.add(bucketName)
                         }
                     }
                 }
 
-                foldersList
+                foldersList.distinct()
             }
 
             onComplete(folders)
         } catch (e: Exception) {
+            println("Erreur lors du chargement des dossiers: ${e.message}")
             onComplete(emptyList())
         }
     }
@@ -303,70 +346,85 @@ private fun loadImages(
         }
     }
 }
-suspend fun loadImagesFromDCIM(context: android.content.Context, folderName: String?): List<ImageItem> {
-    return withContext(Dispatchers.IO) {
+
+private suspend fun loadImagesFromDCIM(
+    context: android.content.Context, 
+    folderName: String?
+): List<ImageItem> {
+    return withContext(Dispatchers.IO) 
+    {
+        // Liste pour stocker les images
         val images = mutableListOf<ImageItem>()
 
-        val projection = arrayOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.DISPLAY_NAME,
-            MediaStore.Images.Media.DATE_TAKEN
-        )
+        try {
+            // Projections des colonnes nécessaires
+            val projection = arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.DATE_TAKEN,
+                MediaStore.Images.Media.BUCKET_DISPLAY_NAME
+            )
 
-        // Sélection variable selon le dossier choisi
-        val selection: String
-        val selectionArgs: Array<String>
+            // Sélection variable selon le dossier choisi
+            val selection: String?
+            val selectionArgs: Array<String>?
 
-        if (folderName == null) {
-            // Dossier DCIM racine
-            selection = "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} = ?"
-            selectionArgs = arrayOf("DCIM")
-        } else {
-            // Sous-dossier spécifique
-            selection = "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} = ?"
-            selectionArgs = arrayOf(folderName)
-        }
-
-        val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
-
-        // Ne pas ajouter LIMIT dans la requête SQL - cela cause l'erreur
-
-        val cursor = context.contentResolver.query(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            projection,
-            selection,
-            selectionArgs,
-            sortOrder
-        )
-
-        cursor?.use {
-            val idColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-            val nameColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-            val dateTakenColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
-
-            // Limiter manuellement à 5 éléments
-            var count = 0
-            while (it.moveToNext() && count < 5) {
-                val id = it.getLong(idColumn)
-                val name = it.getString(nameColumn)
-                val dateTaken = it.getLong(dateTakenColumn)
-
-                val contentUri = ContentUris.withAppendedId(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                    id
-                )
-
-                images.add(
-                    ImageItem(
-                        id = id,
-                        uri = contentUri.toString(),
-                        name = name,
-                        dateTaken = dateTaken
-                    )
-                )
-
-                count++
+            if (folderName == null) {
+                // Dossier DCIM racine - inclure tous les dossiers DCIM
+                selection = "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} LIKE ?"
+                selectionArgs = arrayOf("DCIM%")
+            } else {
+                // Sous-dossier spécifique
+                selection = "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} = ?"
+                selectionArgs = arrayOf(folderName)
             }
+
+            val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
+
+            val cursor = context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                sortOrder
+            )
+
+            cursor?.use {
+                val idColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val nameColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                val dateTakenColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+
+                // Limiter manuellement à 10 éléments pour l'aperçu
+                var count = 0
+                while (it.moveToNext() && count < 10) {
+                    val id = it.getLong(idColumn)
+                    val name = it.getString(nameColumn) ?: "image_$id"
+                    val dateTaken = if (it.isNull(dateTakenColumn)) {
+                        System.currentTimeMillis()
+                    } else {
+                        it.getLong(dateTakenColumn)
+                    }
+
+                    val contentUri = ContentUris.withAppendedId(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        id
+                    )
+
+                    images.add(
+                        ImageItem(
+                            id = id,
+                            uri = contentUri.toString(),
+                            name = name,
+                            dateTaken = dateTaken
+                        )
+                    )
+
+                    count++
+                }
+            }
+        } catch (e: Exception) {
+            println("Erreur lors du chargement des images: ${e.message}")
+            e.printStackTrace()
         }
 
         images

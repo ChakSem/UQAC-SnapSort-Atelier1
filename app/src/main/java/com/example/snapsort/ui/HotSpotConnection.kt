@@ -18,285 +18,197 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.navigation.NavController
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberPermissionState
+import androidx.navigation.NavController
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.foundation.border
-import androidx.compose.ui.viewinterop.AndroidView
-import java.util.concurrent.Executors
-import android.util.Size
-import android.view.ViewGroup
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.window.DialogProperties
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
-import kotlinx.coroutines.launch
-import java.util.concurrent.TimeUnit
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import kotlinx.coroutines.launch
+import android.util.Size
+import android.view.ViewGroup
+import java.util.concurrent.Executors
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun HotSpotConnection(
-    navController: NavController,
-) {
+fun HotSpotConnection(navController: NavController) {
     val context = LocalContext.current
-    val wifiManager = remember { context.getSystemService(Context.WIFI_SERVICE) as WifiManager }
-    val connectivityManager = remember { context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager }
+    val wifiManager = remember { 
+        context.getSystemService(Context.WIFI_SERVICE) as WifiManager 
+    }
+    val connectivityManager = remember { 
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager 
+    }
     val coroutineScope = rememberCoroutineScope()
 
     // État pour les dialogues
     var showQrScannerDialog by remember { mutableStateOf(false) }
     var showNetworkConfirmDialog by remember { mutableStateOf(false) }
-    var showPermissionDeniedDialog by remember { mutableStateOf(false) }
+    var showPermissionRationaleDialog by remember { mutableStateOf(false) }
     var currentSsid by remember { mutableStateOf("") }
     var isConnecting by remember { mutableStateOf(false) }
     var connectionStatus by remember { mutableStateOf("") }
-    var cameraPermissionRequested by remember { mutableStateOf(false) }
-    var locationPermissionRequested by remember { mutableStateOf(false) }
 
-
-
+    // Permissions
+    val cameraPermissionState = rememberPermissionState(
+        permission = Manifest.permission.CAMERA
+    )
+    
     val locationPermissionState = rememberPermissionState(
-        permission = Manifest.permission.ACCESS_FINE_LOCATION,
-        onPermissionResult = { isGranted ->
-            locationPermissionRequested = true
-            if (isGranted) {
-                showQrScannerDialog = true
-            } else {
-                // On peut quand même montrer le scanner, mais on ne pourra pas se connecter automatiquement
-                showQrScannerDialog = true
-            }
-        }
+        permission = Manifest.permission.ACCESS_FINE_LOCATION
     )
 
-    // Vérifier la permission de caméra
-    val cameraPermissionState = rememberPermissionState(
-        permission = Manifest.permission.CAMERA,
-        onPermissionResult = { isGranted ->
-            cameraPermissionRequested = true
-            if (isGranted) {
-                // Si la permission de localisation est également nécessaire (Android 10+)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                    !locationPermissionState.status.isGranted &&
-                    !locationPermissionRequested) {
-                    locationPermissionState.launchPermissionRequest()
+    // Fonction pour obtenir le SSID actuel
+    fun getCurrentSsid(): String {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val networkInfo = connectivityManager.activeNetwork
+                if (networkInfo != null) {
+                    val networkCapabilities = connectivityManager.getNetworkCapabilities(networkInfo)
+                    if (networkCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
+                        // Pour Android 10+, on ne peut plus récupérer directement le SSID
+                        "Réseau WiFi connecté"
+                    } else {
+                        "Non connecté"
+                    }
                 } else {
-                    // Sinon, on peut afficher le scanner directement
-                    showQrScannerDialog = true
+                    "Non connecté"
                 }
             } else {
-                showPermissionDeniedDialog = true
+                // Pour Android 9 et inférieur
+                @Suppress("DEPRECATION")
+                val wifiInfo = wifiManager.connectionInfo
+                wifiInfo.ssid?.removeSurrounding("\"") ?: "Non connecté"
             }
+        } catch (e: Exception) {
+            Log.e("HotSpotConnection", "Erreur lors de la récupération du SSID", e)
+            "Non connecté"
         }
-    )
+    }
 
     // Fonction pour extraire les informations WiFi du QR code
-    fun parseWifiQRCode(qrContent: String): Triple<String, String, Int> {
+    fun parseWifiQRCode(qrContent: String): Triple<String, String, String> {
         var ssid = ""
         var password = ""
-        var encryptionType = 0 // 1=WEP, 2=WPA, 3=WPA2, 4=WPA2/WPA3, 0=None
+        var security = "WPA"
 
         if (qrContent.startsWith("WIFI:")) {
-            val regex = """S:([^;]*);P:([^;]*);T:([^;]*);""".toRegex()
-            val matchResult = regex.find(qrContent)
-
-            if (matchResult != null) {
-                ssid = matchResult.groupValues[1]
-                password = matchResult.groupValues[2]
-                encryptionType = when (matchResult.groupValues[3].uppercase()) {
-                    "WEP" -> 1
-                    "WPA" -> 2
-                    "WPA2" -> 3
-                    "WPA2/WPA3" -> 4
-                    else -> 0
+            val parts = qrContent.removePrefix("WIFI:").removeSuffix(";;").split(";")
+            parts.forEach { part ->
+                when {
+                    part.startsWith("S:") -> ssid = part.removePrefix("S:")
+                    part.startsWith("P:") -> password = part.removePrefix("P:")
+                    part.startsWith("T:") -> security = part.removePrefix("T:")
                 }
             }
         }
-
-        return Triple(ssid, password, encryptionType)
+        return Triple(ssid, password, security)
     }
 
     // Fonction pour se connecter au WiFi
-    fun connectToWifi(ssid: String, password: String, encryptionType: Int) {
+    fun connectToWifi(ssid: String, password: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            // Pour les versions antérieures, ouvrir les paramètres WiFi
+            val intent = Intent(Settings.ACTION_WIFI_SETTINGS)
+            context.startActivity(intent)
+            return
+        }
+
         isConnecting = true
         connectionStatus = "Connexion en cours à $ssid..."
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // Pour Android 10 et supérieur, utiliser NetworkRequest
-                val wifiNetworkSpecifier = WifiNetworkSpecifier.Builder()
-                    .setSsid(ssid)
-                    .apply {
-                        if (password.isNotEmpty()) {
-                            when (encryptionType) {
-                                0 -> { /* Pas de chiffrement */ }
-                                else -> setWpa2Passphrase(password) // WPA2 est le plus couramment utilisé
-                            }
-                        }
+            val wifiNetworkSpecifier = WifiNetworkSpecifier.Builder()
+                .setSsid(ssid)
+                .apply {
+                    if (password.isNotEmpty()) {
+                        setWpa2Passphrase(password)
                     }
-                    .build()
+                }
+                .build()
 
-                val networkRequest = NetworkRequest.Builder()
-                    .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-                    .setNetworkSpecifier(wifiNetworkSpecifier)
-                    .build()
+            val networkRequest = NetworkRequest.Builder()
+                .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+                .setNetworkSpecifier(wifiNetworkSpecifier)
+                .build()
 
-                val networkCallback = object : ConnectivityManager.NetworkCallback() {
-                    override fun onAvailable(network: Network) {
-                        super.onAvailable(network)
-                        // Forcer les connexions à utiliser ce réseau
-                        connectivityManager.bindProcessToNetwork(network)
-                        isConnecting = false
-                        connectionStatus = "Connecté à $ssid"
+            val networkCallback = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    super.onAvailable(network)
+                    connectivityManager.bindProcessToNetwork(network)
+                    isConnecting = false
+                    connectionStatus = "Connecté à $ssid"
+                    currentSsid = ssid
 
-                        // Mise à jour du SSID actuel
-                        currentSsid = ssid
-
-                        // Navigation vers l'écran suivant après connexion réussie
-                        coroutineScope.launch {
-                            navController.navigate("ImagesTransferConfiguration")
-                        }
-                    }
-
-                    override fun onUnavailable() {
-                        super.onUnavailable()
-                        isConnecting = false
-                        connectionStatus = "Échec de connexion à $ssid"
-
-                        // Ouvrir les paramètres WiFi en cas d'échec
-                        val intent = Intent(Settings.ACTION_WIFI_SETTINGS)
-                        context.startActivity(intent)
+                    coroutineScope.launch {
+                        navController.navigate("ImagesTransferConfiguration")
                     }
                 }
 
-                // Demande de connexion au réseau spécifié
-                connectivityManager.requestNetwork(networkRequest, networkCallback)
-            } else {
-                // Pour Android 9 et inférieur, ouvrir les paramètres WiFi
-                val intent = Intent(Settings.ACTION_WIFI_SETTINGS)
-                context.startActivity(intent)
-                isConnecting = false
+                override fun onUnavailable() {
+                    super.onUnavailable()
+                    isConnecting = false
+                    connectionStatus = "Échec de connexion à $ssid"
+                    
+                    val intent = Intent(Settings.ACTION_WIFI_SETTINGS)
+                    context.startActivity(intent)
+                }
             }
+
+            connectivityManager.requestNetwork(networkRequest, networkCallback)
         } catch (e: Exception) {
-            Log.e("HotSpotConnection", "Erreur lors de la connexion WiFi: ${e.message}")
+            Log.e("HotSpotConnection", "Erreur lors de la connexion WiFi", e)
             isConnecting = false
             connectionStatus = "Erreur: ${e.message}"
-
-            // Ouvrir les paramètres WiFi en cas d'erreur
+            
             val intent = Intent(Settings.ACTION_WIFI_SETTINGS)
             context.startActivity(intent)
         }
     }
 
-    // Récupérer le SSID actuel
+    // Récupérer le SSID actuel au démarrage
     LaunchedEffect(Unit) {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // For Android 10 (API 29) and above
-                val connectivityManager =
-                    context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-                val networkInfo = connectivityManager.activeNetwork
-                if (networkInfo != null) {
-                    val networkCapabilities =
-                        connectivityManager.getNetworkCapabilities(networkInfo)
-                    if (networkCapabilities != null &&
-                        networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-                        val wifiManager = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
-                        currentSsid = try {
-                            wifiManager.connectionInfo.ssid.removeSurrounding("\"")
-                        } catch (e: Exception) {
-                            "Non connecté"
-                        }
-                    } else {
-                        currentSsid = "Non connecté"
-                    }
-                } else {
-                    currentSsid = "Non connecté"
-                }
-            } else {
-                // For Android 9 (API 28) and below
-                try {
-                    val wifiInfo = wifiManager.connectionInfo
-                    currentSsid = wifiInfo.ssid.removeSurrounding("\"")
-                } catch (e: Exception) {
-                    currentSsid = "Non connecté"
-                }
-            }
-        } catch (e: Exception) {
-            currentSsid = "Non connecté"
-        }
+        currentSsid = getCurrentSsid()
     }
 
-    // Lancement de l'écran des paramètres WiFi
     val wifiSettingsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) {
-        // Rafraîchir le SSID après retour des paramètres
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // For Android 10 (API 29) and above
-                val connectivityManager =
-                    context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-                val networkInfo = connectivityManager.activeNetwork
-                if (networkInfo != null) {
-                    val networkCapabilities =
-                        connectivityManager.getNetworkCapabilities(networkInfo)
-                    if (networkCapabilities != null &&
-                        networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-                        val wifiManager = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
-                        currentSsid = try {
-                            wifiManager.connectionInfo.ssid.removeSurrounding("\"")
-                        } catch (e: Exception) {
-                            "Non connecté"
-                        }
-                    } else {
-                        currentSsid = "Non connecté"
-                    }
-                } else {
-                    currentSsid = "Non connecté"
-                }
-            } else {
-                // For Android 9 (API 28) and below
-                try {
-                    val wifiInfo = wifiManager.connectionInfo
-                    currentSsid = wifiInfo.ssid.removeSurrounding("\"")
-                } catch (e: Exception) {
-                    currentSsid = "Non connecté"
-                }
-            }
-        } catch (e: Exception) {
-            currentSsid = "Non connecté"
-        }
+        currentSsid = getCurrentSsid()
     }
 
     Column(
@@ -396,7 +308,7 @@ fun HotSpotConnection(
             }
         }
 
-        // Status de connexion (visible seulement pendant la connexion)
+        // Status de connexion
         AnimatedVisibility(
             visible = isConnecting,
             enter = fadeIn(),
@@ -443,20 +355,20 @@ fun HotSpotConnection(
 
         OutlinedButton(
             onClick = {
-                // Réinitialiser les flags de demande de permission
-                cameraPermissionRequested = false
-                locationPermissionRequested = false
-
-                // Demander d'abord la permission de caméra si nécessaire
-                if (!cameraPermissionState.status.isGranted) {
-                    cameraPermissionState.launchPermissionRequest()
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                    !locationPermissionState.status.isGranted) {
-                    // Ensuite la permission de localisation si nécessaire pour Android 10+
-                    locationPermissionState.launchPermissionRequest()
-                } else {
-                    // Si toutes les permissions sont accordées, afficher le scanner
-                    showQrScannerDialog = true
+                when {
+                    !cameraPermissionState.status.isGranted -> {
+                        if (cameraPermissionState.status.shouldShowRationale) {
+                            showPermissionRationaleDialog = true
+                        } else {
+                            cameraPermissionState.launchPermissionRequest()
+                        }
+                    }
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !locationPermissionState.status.isGranted -> {
+                        locationPermissionState.launchPermissionRequest()
+                    }
+                    else -> {
+                        showQrScannerDialog = true
+                    }
                 }
             },
             modifier = Modifier.fillMaxWidth(),
@@ -475,22 +387,18 @@ fun HotSpotConnection(
         QrScannerDialog(
             onDismiss = { showQrScannerDialog = false },
             onQrCodeScanned = { qrContent ->
-                // Traitement du code QR WiFi
                 showQrScannerDialog = false
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                    locationPermissionState.status.isGranted) {
-                    // Avec Android 10+ et permission de localisation, on peut se connecter directement
-                    val (ssid, password, encryptionType) = parseWifiQRCode(qrContent)
-                    if (ssid.isNotEmpty()) {
-                        connectToWifi(ssid, password, encryptionType)
+                val (ssid, password, _) = parseWifiQRCode(qrContent)
+                
+                if (ssid.isNotEmpty()) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && 
+                        locationPermissionState.status.isGranted) {
+                        connectToWifi(ssid, password)
                     } else {
-                        // Si on ne peut pas extraire les informations WiFi, ouvrir les paramètres
                         val intent = Intent(Settings.ACTION_WIFI_SETTINGS)
                         wifiSettingsLauncher.launch(intent)
                     }
                 } else {
-                    // Pour les versions antérieures ou sans permission de localisation
                     val intent = Intent(Settings.ACTION_WIFI_SETTINGS)
                     wifiSettingsLauncher.launch(intent)
                 }
@@ -518,7 +426,6 @@ fun HotSpotConnection(
                 Button(
                     onClick = {
                         showNetworkConfirmDialog = false
-                        // Navigation vers l'écran suivant
                         navController.navigate("ImagesTransferConfiguration")
                     }
                 ) {
@@ -535,22 +442,24 @@ fun HotSpotConnection(
         )
     }
 
-    // Permission refusée
-    if (showPermissionDeniedDialog) {
+    // Permission Rationale Dialog
+    if (showPermissionRationaleDialog) {
         AlertDialog(
-            onDismissRequest = { showPermissionDeniedDialog = false },
+            onDismissRequest = { showPermissionRationaleDialog = false },
             title = { Text("Permission de caméra requise") },
-            text = { Text("Pour scanner un code QR WiFi, l'application a besoin d'accéder à votre caméra.") },
+            text = { 
+                Text("Pour scanner un code QR WiFi, l'application a besoin d'accéder à votre caméra.") 
+            },
             confirmButton = {
                 Button(onClick = {
-                    showPermissionDeniedDialog = false
+                    showPermissionRationaleDialog = false
                     cameraPermissionState.launchPermissionRequest()
                 }) {
-                    Text("Réessayer")
+                    Text("Autoriser")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showPermissionDeniedDialog = false }) {
+                TextButton(onClick = { showPermissionRationaleDialog = false }) {
                     Text("Annuler")
                 }
             }
@@ -565,8 +474,6 @@ fun QrScannerDialog(
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val context = LocalContext.current
-
-    // Variables pour le scanner
     var scanning by remember { mutableStateOf(true) }
     var hasDetectedQR by remember { mutableStateOf(false) }
 
@@ -575,13 +482,13 @@ fun QrScannerDialog(
         properties = DialogProperties(
             dismissOnBackPress = true,
             dismissOnClickOutside = false,
-            usePlatformDefaultWidth = false // Permet au dialogue d'utiliser la largeur maximale
+            usePlatformDefaultWidth = false
         )
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.95f) // Utilise 95% de la largeur de l'écran
-                .fillMaxHeight(0.85f) // Utilise 85% de la hauteur de l'écran
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.85f)
                 .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surface)
         ) {
@@ -597,8 +504,7 @@ fun QrScannerDialog(
                         text = "Scanner le code QR WiFi",
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.align(Alignment.Center),
-                        fontSize = 22.sp
+                        modifier = Modifier.align(Alignment.Center)
                     )
 
                     IconButton(
@@ -622,7 +528,7 @@ fun QrScannerDialog(
                     AndroidView(
                         factory = { ctx ->
                             val previewView = PreviewView(ctx).apply {
-                                this.scaleType = PreviewView.ScaleType.FILL_CENTER
+                                scaleType = PreviewView.ScaleType.FILL_CENTER
                                 layoutParams = ViewGroup.LayoutParams(
                                     ViewGroup.LayoutParams.MATCH_PARENT,
                                     ViewGroup.LayoutParams.MATCH_PARENT
@@ -658,7 +564,6 @@ fun QrScannerDialog(
                                                 .addOnSuccessListener { barcodes ->
                                                     for (barcode in barcodes) {
                                                         val rawValue = barcode.rawValue
-                                                        // Vérifier si c'est un code WiFi
                                                         if (barcode.valueType == Barcode.TYPE_WIFI) {
                                                             val ssid = barcode.wifi?.ssid ?: ""
                                                             val password = barcode.wifi?.password ?: ""
@@ -670,7 +575,6 @@ fun QrScannerDialog(
                                                                 onQrCodeScanned("WIFI:S:$ssid;P:$password;T:$encryptionType;;")
                                                             }
                                                         } else if (rawValue?.startsWith("WIFI:") == true) {
-                                                            // Format texte pour les QR codes WiFi
                                                             hasDetectedQR = true
                                                             scanning = false
                                                             onQrCodeScanned(rawValue)
@@ -678,7 +582,6 @@ fun QrScannerDialog(
                                                     }
                                                 }
                                                 .addOnFailureListener {
-                                                    // Gestion des erreurs
                                                     Log.e("QRScanner", "Erreur de scan: ${it.message}")
                                                 }
                                                 .addOnCompleteListener {
@@ -701,7 +604,7 @@ fun QrScannerDialog(
                                         imageAnalysis
                                     )
                                 } catch (e: Exception) {
-                                    Log.e("QRScanner", "Erreur d'initialisation de la caméra: ${e.message}")
+                                    Log.e("QRScanner", "Erreur d'initialisation de la caméra", e)
                                 }
                             }, ContextCompat.getMainExecutor(ctx))
 
@@ -710,39 +613,16 @@ fun QrScannerDialog(
                         modifier = Modifier.fillMaxSize()
                     )
 
-                    // QR Frame Overlay - Cadre plus grand
-                    Box(
-                        modifier = Modifier
-                            .size(300.dp) // Taille augmentée pour un meilleur cadrage
-                            .align(Alignment.Center)
-                            .border(
-                                width = 3.dp, // Bordure plus visible
-                                color = Color(0xFF5D4BA8), // Couleur violette comme sur votre capture
-                                shape = RoundedCornerShape(24.dp) // Coins plus arrondis
-                            )
-                    )
-
-                    // Optionnel: Overlay semi-transparent pour mettre en évidence le cadre
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Black.copy(alpha = 0.5f),
-                                        Color.Black.copy(alpha = 0.3f)
-                                    )
-                                )
-                            )
-                    )
-
-                    // Trou dans l'overlay pour le cadre QR
+                    // QR Frame Overlay
                     Box(
                         modifier = Modifier
                             .size(300.dp)
                             .align(Alignment.Center)
-                            .background(Color.Transparent)
-                            .clip(RoundedCornerShape(24.dp))
+                            .border(
+                                width = 3.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(24.dp)
+                            )
                     )
                 }
 
@@ -750,16 +630,18 @@ fun QrScannerDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
+                        .background(MaterialTheme.colorScheme.surface)
                         .padding(vertical = 20.dp)
                 ) {
                     Text(
                         text = "Placez le code QR du réseau WiFi dans le cadre pour le scanner",
                         textAlign = TextAlign.Center,
-                        fontSize = 18.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color.Black,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
                     )
                 }
             }

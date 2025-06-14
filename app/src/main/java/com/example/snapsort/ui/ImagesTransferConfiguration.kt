@@ -1,275 +1,230 @@
-    package com.example.snapsort.ui
-    
-    import android.Manifest
-    import android.content.ContentUris
-    import android.content.Context
-    import android.content.pm.PackageManager
-    import android.net.ConnectivityManager
-    import android.net.NetworkCapabilities
-    import android.net.Uri
-    import android.net.wifi.WifiManager
-    import android.os.Build
-    import android.os.Environment
-    import android.provider.MediaStore
-    import android.util.Log
-    import kotlinx.coroutines.isActive
-    import android.widget.Toast
-    import androidx.activity.compose.rememberLauncherForActivityResult
-    import androidx.activity.result.contract.ActivityResultContracts
-    import androidx.annotation.RequiresApi
-    import androidx.compose.foundation.Image
-    import androidx.compose.material3.RangeSlider
-    import androidx.compose.material3.SliderDefaults
-    import androidx.compose.foundation.layout.*
-    import androidx.compose.foundation.shape.RoundedCornerShape
-    import androidx.compose.material.icons.Icons
-    import androidx.compose.material.icons.filled.ArrowDropDown
-    import androidx.compose.material.icons.filled.ErrorOutline
-    import androidx.compose.material.icons.filled.Folder
-    import androidx.compose.material3.*
-    import androidx.compose.runtime.*
-    import androidx.compose.ui.Alignment
-    import androidx.compose.ui.Modifier
-    import androidx.compose.ui.draw.clip
-    import androidx.compose.ui.graphics.Color
-    import androidx.compose.ui.layout.ContentScale
-    import androidx.compose.ui.platform.LocalContext
-    import androidx.compose.ui.res.painterResource
-    import androidx.compose.ui.text.font.FontWeight
-    import androidx.compose.ui.unit.dp
-    import androidx.compose.ui.unit.sp
-    import androidx.core.content.ContextCompat
-    import androidx.navigation.NavController
-    import coil.compose.rememberAsyncImagePainter
-    import com.example.snapsort.R
-    import kotlinx.coroutines.Dispatchers
-    import kotlinx.coroutines.Job
-    import kotlinx.coroutines.delay
-    import kotlinx.coroutines.launch
-    import kotlinx.coroutines.withContext
-    import java.io.File
-    import java.io.OutputStream
-    import java.net.InetSocketAddress
-    import java.net.Socket
-    import java.text.SimpleDateFormat
-    import java.util.*
-    import java.io.BufferedWriter
-    import java.io.OutputStreamWriter
-    import java.net.HttpURLConnection
-    import java.net.Inet4Address
-    import java.net.NetworkInterface
-    import java.net.URL
-    
+package com.example.snapsort.ui
 
-    data class ImageInfo(
-        val uri: Uri,
-        val dateTaken: Long,
-        val path: String
-    )
+import android.Manifest
+import android.content.ContentUris
+import android.content.Context
+import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
+import android.util.Log
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.navigation.NavController
+import coil.compose.rememberAsyncImagePainter
+import com.example.snapsort.R
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
+import java.io.BufferedOutputStream
+import java.io.BufferedWriter
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.Inet4Address
+import java.net.InetSocketAddress
+import java.net.NetworkInterface
+import java.net.Socket
+import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.*
 
-    @RequiresApi(Build.VERSION_CODES.R)
-    @Composable
-    fun ImagesTransferConfiguration(
-        navController: NavController,
-    ) {
-        val context = LocalContext.current
-        val coroutineScope = rememberCoroutineScope()
-        val tag = "ImagesTransfer"
+data class ImageInfo(
+    val uri: Uri,
+    val dateTaken: Long,
+    val path: String,
+    val name: String,
+    val size: Long
+)
 
-        // État des permissions
-        var hasPermission by remember {
-            mutableStateOf(
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.READ_MEDIA_IMAGES
-                ) == PackageManager.PERMISSION_GRANTED ||
-                        (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU &&
-                                ContextCompat.checkSelfPermission(
-                                    context,
-                                    Manifest.permission.READ_EXTERNAL_STORAGE
-                                ) == PackageManager.PERMISSION_GRANTED)
-            )
+@Composable
+fun ImagesTransferConfiguration(navController: NavController) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val tag = "ImagesTransfer"
+
+    // État des permissions
+    val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Manifest.permission.READ_MEDIA_IMAGES
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    }
+
+    var hasPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    // Images trouvées et sélectionnées
+    var allImages by remember { mutableStateOf<List<ImageInfo>>(emptyList()) }
+    var filteredImages by remember { mutableStateOf<List<ImageInfo>>(emptyList()) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // État pour les filtres de date
+    var dateRange by remember { mutableStateOf(0f..1f) }
+    var minDate by remember { mutableStateOf(0L) }
+    var maxDate by remember { mutableStateOf(System.currentTimeMillis()) }
+
+    // Formatage pour afficher les dates
+    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+
+    // Dossiers disponibles
+    var availableFolders by remember { mutableStateOf<List<String>>(emptyList()) }
+    var selectedFolder by remember { mutableStateOf("ALL") }
+    var dropdownExpanded by remember { mutableStateOf(false) }
+
+    // État du transfert - AMÉLIORÉ
+    var isTransferring by remember { mutableStateOf(false) }
+    var transferProgress by remember { mutableStateOf(0f) }
+    var transferredCount by remember { mutableStateOf(0) }
+    var totalToTransfer by remember { mutableStateOf(0) }
+    var isLoadingImages by remember { mutableStateOf(false) }
+    var transferError by remember { mutableStateOf<String?>(null) }
+    var transferStatus by remember { mutableStateOf("") }
+
+    // Fonction pour filtrer les images en fonction de la plage de dates
+    fun filterImagesByDateRange() {
+        if (allImages.isNotEmpty() && minDate < maxDate) {
+            val range = maxDate - minDate
+            val startDate = minDate + (range * dateRange.start).toLong()
+            val endDate = minDate + (range * dateRange.endInclusive).toLong()
+            
+            filteredImages = allImages.filter { it.dateTaken in startDate..endDate }
+            Log.d(tag, "Images filtrées: ${filteredImages.size} sur ${allImages.size}")
+        } else {
+            filteredImages = allImages
         }
+    }
 
-        // Images trouvées et sélectionnées
-        var allImages by remember { mutableStateOf<List<ImageInfo>>(emptyList()) }
-        var filteredImages by remember { mutableStateOf<List<ImageInfo>>(emptyList()) }
-        var errorMessage by remember { mutableStateOf<String?>(null) }
-
-        // État pour le Range Slider de dates
-        var dateRange by remember { mutableStateOf(0f..1f) }
-        var minDate by remember { mutableStateOf(0L) }
-        var maxDate by remember { mutableStateOf(System.currentTimeMillis()) }
-
-        // Formatage pour afficher les dates
-        val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-
-        // Dossiers disponibles
-        var availableFolders by remember { mutableStateOf<List<String>>(emptyList()) }
-        var selectedFolder by remember { mutableStateOf<String>("ALL") }
-        var dropdownExpanded by remember { mutableStateOf(false) }
-
-        // État du transfert
-        var isTransferring by remember { mutableStateOf(false) }
-        var transferProgress by remember { mutableStateOf(0f) }
-        var transferredCount by remember { mutableStateOf(0) }
-        var totalToTransfer by remember { mutableStateOf(0) }
-
-        // État pour afficher le scanning des images
-        var isLoadingImages by remember { mutableStateOf(false) }
-
-        // Job pour pouvoir annuler les coroutines précédentes
-        var currentLoadingJob by remember { mutableStateOf<Job?>(null) }
-
-        // Fonction pour filtrer les images en fonction de la plage de dates
-        fun filterImagesByDateRange(
-            images: List<ImageInfo>,
-            start: Float,
-            end: Float,
-            min: Long,
-            max: Long
-        ) {
-            if (images.isNotEmpty() && min < max) {
-                val startDate = max - ((max - min) * start).toLong()
-                val endDate = max - ((max - min) * end).toLong()
-                filteredImages = images.filter { it.dateTaken in endDate..startDate }
-                Log.d(
-                    tag,
-                    "Images filtrées: ${filteredImages.size} sur ${images.size} (${
-                        dateFormat.format(Date(startDate))
-                    } à ${dateFormat.format(Date(endDate))})"
-                )
-            } else {
-                filteredImages = images
-            }
-        }
-
-        // Fonction pour mettre à jour le range des dates en fonction des images chargées
-        fun updateDateRange(images: List<ImageInfo>) {
-            if (images.isNotEmpty()) {
-                // Récupérer les dates min et max des images
-                minDate = images.minByOrNull { it.dateTaken }?.dateTaken ?: System.currentTimeMillis()
-                maxDate = images.maxByOrNull { it.dateTaken }?.dateTaken ?: System.currentTimeMillis()
-
-                // Réinitialiser le slider
-                dateRange = 0f..1f
-
-                // Appliquer le filtre initial
-                filterImagesByDateRange(images, 0f, 1f, minDate, maxDate)
-            } else {
-                // Si pas d'images, reset
-                filteredImages = emptyList()
-            }
-        }
-
-        // Fonction pour charger les images depuis un dossier spécifique
-        fun loadImagesFromFolder(folder: String) {
-            // Annuler tout job précédent
-            currentLoadingJob?.cancel()
-
-            // Réinitialiser les états
-            allImages = emptyList()
+    // Fonction pour mettre à jour le range des dates
+    fun updateDateRange(images: List<ImageInfo>) {
+        if (images.isNotEmpty()) {
+            minDate = images.minByOrNull { it.dateTaken }?.dateTaken ?: System.currentTimeMillis()
+            maxDate = images.maxByOrNull { it.dateTaken }?.dateTaken ?: System.currentTimeMillis()
+            dateRange = 0f..1f
+            filterImagesByDateRange()
+        } else {
             filteredImages = emptyList()
-            errorMessage = null
-            isLoadingImages = true
+        }
+    }
 
-            // Créer un nouveau job pour le chargement des images
-            currentLoadingJob = coroutineScope.launch {
-                try {
-                    Log.d(tag, "Début du chargement des images pour le dossier: $folder")
+    // Fonction pour charger les images - AMÉLIORÉE
+    fun loadImagesFromFolder(folder: String) {
+        errorMessage = null
+        isLoadingImages = true
+        
+        coroutineScope.launch {
+            try {
+                val loadedImages = withContext(Dispatchers.IO) {
+                    getImagesFromFolder(context, folder)
+                }
+                
+                allImages = loadedImages
+                updateDateRange(loadedImages)
+                isLoadingImages = false
+                Log.d(tag, "Images chargées: ${loadedImages.size}")
+            } catch (e: Exception) {
+                Log.e(tag, "Erreur lors du chargement des images", e)
+                errorMessage = "Erreur: ${e.message}"
+                isLoadingImages = false
+            }
+        }
+    }
 
-                    val loadedImages = withContext(Dispatchers.IO) {
-                        getImagesFromFolder(context, folder)
-                    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasPermission = isGranted
+        if (isGranted) {
+            coroutineScope.launch {
+                availableFolders = getDCIMFolders(context)
+                loadImagesFromFolder(selectedFolder)
+            }
+        }
+    }
 
-                    // Vérifier si le job a été annulé pendant le chargement
-                    if (!isActive) {
-                        Log.d(tag, "Chargement des images annulé")
-                        return@launch
-                    }
+    // Charger les dossiers disponibles au démarrage
+    LaunchedEffect(hasPermission) {
+        if (hasPermission) {
+            try {
+                availableFolders = getDCIMFolders(context)
+                loadImagesFromFolder(selectedFolder)
+            } catch (e: Exception) {
+                errorMessage = "Erreur lors du chargement des dossiers: ${e.message}"
+            }
+        } else {
+            permissionLauncher.launch(permission)
+        }
+    }
 
-                    Log.d(tag, "Images chargées: ${loadedImages.size}")
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.ic_book),
+            contentDescription = "Transfer Icon",
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
 
-                    allImages = loadedImages
-                    updateDateRange(loadedImages)
-                    isLoadingImages = false
-                } catch (e: Exception) {
-                    if (isActive) {
-                        Log.e(tag, "Erreur lors du chargement des images", e)
-                        errorMessage = "Erreur: ${e.message}"
-                        isLoadingImages = false
+        Text(
+            text = "Sélection des photos à transférer",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        if (!hasPermission) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "Permission d'accès aux images nécessaire",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = { permissionLauncher.launch(permission) }
+                    ) {
+                        Text("Demander la permission")
                     }
                 }
             }
-        }
-
-        val permissionLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestPermission()
-        ) { isGranted ->
-            hasPermission = isGranted
-            if (isGranted) {
-                coroutineScope.launch {
-                    availableFolders = getDCIMFolders(context)
-                    if (availableFolders.isNotEmpty()) {
-                        loadImagesFromFolder(selectedFolder)
-                    }
-                }
-            }
-        }
-
-        // Charger les dossiers disponibles au démarrage si l'autorisation est déjà accordée
-        LaunchedEffect(hasPermission) {
-            if (hasPermission) {
-                try {
-                    availableFolders = getDCIMFolders(context)
-                    if (availableFolders.isNotEmpty()) {
-                        selectedFolder = "ALL"
-                        loadImagesFromFolder(selectedFolder)
-                    } else {
-                        errorMessage = "Aucun dossier d'images trouvé"
-                    }
-                } catch (e: Exception) {
-                    errorMessage = "Erreur lors du chargement des dossiers: ${e.message}"
-                    Log.e(tag, "Erreur lors du chargement des dossiers", e)
-                }
-            } else {
-                // Demander l'autorisation si nécessaire
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    permissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
-                } else {
-                    permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-                }
-            }
-        }
-
-        // Nettoyer les ressources quand le composable est détruit
-        DisposableEffect(Unit) {
-            onDispose {
-                // Annuler les jobs en cours quand le composant est détruit
-                currentLoadingJob?.cancel()
-            }
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_book),
-                contentDescription = "Transfer Icon",
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-
-            Text(
-                text = "Sélection des photos à transférer",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-
+        } else {
             // Menu déroulant pour les dossiers
             Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(
@@ -305,22 +260,28 @@
                 }
             }
 
-            // Afficher un indicateur de chargement pendant le scan des images
+            // Affichage du chargement
             if (isLoadingImages) {
-                Column(
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    CircularProgressIndicator()
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Recherche des images dans ${if (selectedFolder == "ALL") "tous les dossiers" else selectedFolder}...",
-                        style = MaterialTheme.typography.bodyMedium
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("Recherche des images...")
+                    }
                 }
             }
 
-            // Ajout du double slider pour la sélection de plage de dates
+            // Slider pour la sélection de plage de dates
             if (allImages.isNotEmpty() && minDate < maxDate) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -329,8 +290,7 @@
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .padding(16.dp)
                     ) {
                         Text(
                             "Sélectionner une plage de dates",
@@ -338,83 +298,85 @@
                             fontWeight = FontWeight.Medium
                         )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         // Affichage des dates sélectionnées
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                             // Date de fin (plus ancienne)
-                             val endDate = maxDate - ((maxDate - minDate) * dateRange.endInclusive).toLong()
-                             Text(
-                                 text = "Fin: ${dateFormat.format(Date(endDate))}",
-                                 style = MaterialTheme.typography.bodyMedium
-                             )
-
-                            // Date de début (plus récente)
-                            val startDate = maxDate - ((maxDate - minDate) * dateRange.start).toLong()
+                            val range = maxDate - minDate
+                            val startDate = minDate + (range * dateRange.start).toLong()
+                            val endDate = minDate + (range * dateRange.endInclusive).toLong()
+                            
                             Text(
-                                text = "Début: ${dateFormat.format(Date(startDate))}",
+                                text = "De: ${dateFormat.format(Date(startDate))}",
                                 style = MaterialTheme.typography.bodyMedium
                             )
-
-
+                            Text(
+                                text = "À: ${dateFormat.format(Date(endDate))}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Le slider double pour sélectionner la plage
                         RangeSlider(
                             value = dateRange,
                             onValueChange = { range ->
                                 dateRange = range
-                                filterImagesByDateRange(
-                                    allImages,
-                                    range.start,
-                                    range.endInclusive,
-                                    minDate,
-                                    maxDate
-                                )
+                                filterImagesByDateRange()
                             },
                             valueRange = 0f..1f,
-                            steps = 100,
-                            colors = SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.primary,
-                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                                inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                            ),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
             }
 
-            // Nombre d'images chargées et sélectionnées
+            // Nombre d'images sélectionnées avec taille totale
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "${filteredImages.size} images sélectionnées sur ${allImages.size} disponibles",
+                        text = "${filteredImages.size} images sélectionnées",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium
                     )
+                    if (allImages.isNotEmpty()) {
+                        Text(
+                            text = "sur ${allImages.size} disponibles",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    
+                    // Afficher la taille totale estimée
+                    if (filteredImages.isNotEmpty()) {
+                        val totalSizeMB = filteredImages.sumOf { it.size } / (1024 * 1024)
+                        Text(
+                            text = "Taille estimée: ${totalSizeMB} MB",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
-            // Message d'erreur si nécessaire
+            // Message d'erreur
             if (errorMessage != null) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF0F0))
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
                 ) {
                     Row(
                         modifier = Modifier
@@ -425,57 +387,108 @@
                         Icon(
                             Icons.Default.ErrorOutline,
                             contentDescription = "Error",
-                            tint = Color.Red,
-                            modifier = Modifier.size(24.dp)
+                            tint = MaterialTheme.colorScheme.onErrorContainer
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = errorMessage ?: "",
-                            color = Color.Red
+                            color = MaterialTheme.colorScheme.onErrorContainer
                         )
                     }
                 }
             }
 
-            // Aperçu des images (première et dernière de la sélection)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                if (filteredImages.isNotEmpty()) {
-                    // Dernière image (la plus ancienne)
+            // Aperçu des images
+            if (filteredImages.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    // Première image (plus récente)
                     ImagePreview(
-                        uri = filteredImages.last().uri,
-                        label = "Plus ancienne"
+                        uri = filteredImages.first().uri,
+                        label = "Plus récente"
                     )
 
-                    // Première image (la plus récente)
+                    // Dernière image (plus ancienne) si différente
                     if (filteredImages.size > 1) {
                         ImagePreview(
-                            uri = filteredImages.first().uri,
-                            label = "Plus récente"
+                            uri = filteredImages.last().uri,
+                            label = "Plus ancienne"
                         )
                     }
                 }
             }
 
-            // Indicateur de progression si transfert en cours
+            // Indicateur de progression et status du transfert - AMÉLIORÉ
             if (isTransferring) {
-                Column(
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
                 ) {
-                    LinearProgressIndicator(
-                        progress = transferProgress,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Text(
-                        text = "Transfert en cours: $transferredCount/$totalToTransfer",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = transferStatus,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        LinearProgressIndicator(
+                            progress = transferProgress,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        
+                        Spacer(modifier = Modifier.height(4.dp))
+                        
+                        Text(
+                            text = "$transferredCount / $totalToTransfer images",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 }
             }
+
+            // Erreur de transfert
+            if (transferError != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = "Erreur de transfert",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            text = transferError ?: "",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { transferError = null }
+                        ) {
+                            Text("OK")
+                        }
+                    }
+                }
+            }
+
             // État pour l'alerte de connexion
             var showHotspotAlert by remember { mutableStateOf(false) }
 
@@ -484,7 +497,9 @@
                 AlertDialog(
                     onDismissRequest = { showHotspotAlert = false },
                     title = { Text("Connexion requise") },
-                    text = { Text("Vous n'êtes pas connecté à un hotspot. Veuillez activer le hotspot ou consulter le tutoriel pour savoir comment procéder.") },
+                    text = { 
+                        Text("Vous n'êtes pas connecté à un hotspot. Veuillez activer le hotspot ou consulter le tutoriel.")
+                    },
                     confirmButton = {
                         TextButton(onClick = { showHotspotAlert = false }) {
                             Text("OK")
@@ -501,45 +516,50 @@
                 )
             }
 
+            // Bouton de transfert - AMÉLIORÉ
             Button(
                 onClick = {
                     if (filteredImages.isNotEmpty()) {
                         if (!isConnectedToHotspot(context)) {
                             showHotspotAlert = true
                         } else {
+                            // Réinitialiser les états d'erreur
+                            transferError = null
+                            
                             coroutineScope.launch {
-                                isTransferring = true
-                                totalToTransfer = filteredImages.size
-                                transferredCount = 0
-
                                 try {
-                                    val success = transferImages(
-                                        context,
-                                        filteredImages,
-                                        onProgressUpdate = { progress, count ->
+                                    isTransferring = true
+                                    totalToTransfer = filteredImages.size
+                                    transferredCount = 0
+                                    transferProgress = 0f
+                                    transferStatus = "Initialisation du transfert..."
+
+                                    val success = transferImagesOptimized(
+                                        context = context,
+                                        images = filteredImages,
+                                        onProgressUpdate = { progress, count, status ->
                                             transferProgress = progress
                                             transferredCount = count
+                                            transferStatus = status
                                         }
                                     )
 
+                                    // Notification de fin
                                     withContext(Dispatchers.Main) {
                                         Toast.makeText(
                                             context,
-                                            if (success) "Transfert réussi!" else "Échec du transfert",
+                                            if (success) "Transfert réussi! $transferredCount images transférées" 
+                                            else "Transfert partiellement réussi: $transferredCount/$totalToTransfer images",
                                             Toast.LENGTH_LONG
                                         ).show()
                                     }
+                                    
                                 } catch (e: Exception) {
                                     Log.e(tag, "Erreur lors du transfert", e)
-                                    withContext(Dispatchers.Main) {
-                                        Toast.makeText(
-                                            context,
-                                            "Erreur: ${e.message}",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-                                    }
+                                    transferError = e.message ?: "Erreur inconnue"
                                 } finally {
                                     isTransferring = false
+                                    transferStatus = ""
                                 }
                             }
                         }
@@ -556,490 +576,410 @@
             ) {
                 if (isTransferring) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
+                        modifier = Modifier.size(20.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text(if (isTransferring) "Transfert en cours..." else "Transférer ${filteredImages.size} photo(s)")
-            }
-        }
-    }
-
-    // Fonction optimisée pour récupérer les images d'un dossier spécifique
-    private fun getImagesFromFolder(context: Context, folderPath: String): List<ImageInfo> {
-        val imageInfoList = mutableListOf<ImageInfo>()
-        val contentResolver = context.contentResolver
-        val tag = "ImagesTransfer"
-
-        Log.d(tag, "Recherche d'images dans le dossier: $folderPath")
-
-        try {
-            // Projection pour récupérer les données nécessaires
-            val projection = arrayOf(
-                MediaStore.Images.Media._ID,
-                MediaStore.Images.Media.DATE_TAKEN,
-                MediaStore.Images.Media.DATA
-            )
-
-            // Construire la requête en fonction du dossier sélectionné
-            val selection = if (folderPath == "ALL") {
-                null
-            } else {
-                // Utiliser LIKE pour le chemin du dossier
-                "${MediaStore.Images.Media.DATA} LIKE ?"
-            }
-
-            val selectionArgs = if (folderPath == "ALL") {
-                null
-            } else {
-                val searchPath = if (folderPath.startsWith("DCIM/")) {
-                    // Chemin pour les sous-dossiers DCIM
-                    "%/${folderPath}/%"
-                } else if (folderPath == "DCIM") {
-                    // Chemin pour le dossier DCIM principal
-                    "%/DCIM/%"
-                } else {
-                    // Autre chemin
-                    "%$folderPath%"
-                }
-                arrayOf(searchPath)
-            }
-
-            // Trier par date de prise de vue (du plus récent au plus ancien)
-            val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
-
-            val cursor = contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                sortOrder
-            )
-
-            cursor?.use { c ->
-                Log.d(tag, "Nombre d'images trouvées: ${c.count}")
-
-                val idColumn = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-                val dateColumn = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
-                val dataColumn = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-
-                while (c.moveToNext()) {
-                    val id = c.getLong(idColumn)
-                    val dateTaken = if (c.isNull(dateColumn)) {
-                        System.currentTimeMillis()
-                    } else {
-                        c.getLong(dateColumn)
-                    }
-                    val path = c.getString(dataColumn)
-
-                    // Création de l'URI du contenu
-                    val contentUri = ContentUris.withAppendedId(
-                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                        id
-                    )
-
-                    // Vérifier si l'URI est valide
-                    try {
-                        contentResolver.openInputStream(contentUri)?.close()
-                        imageInfoList.add(ImageInfo(contentUri, dateTaken, path))
-                        Log.d(tag, "Image trouvée: Path=$path")
-                    } catch (e: Exception) {
-                        Log.e(tag, "URI invalide: $contentUri - ${e.message}")
-                    }
-                }
-            }
-
-            // Si la liste est vide, essayer la méthode de secours
-            if (imageInfoList.isEmpty() && folderPath != "ALL") {
-                Log.d(tag, "Tentative de récupération directe des fichiers dans $folderPath")
-                val dirPath = when {
-                    folderPath.startsWith("DCIM/") -> {
-                        File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
-                            folderPath.substring(5))
-                    }
-                    folderPath == "DCIM" -> {
-                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
-                    }
-                    else -> {
-                        File(folderPath)
-                    }
-                }
-
-                // Vérifier si le dossier existe
-                if (dirPath.exists() && dirPath.isDirectory) {
-                    val files = dirPath.listFiles { file ->
-                        file.isFile && (file.name.endsWith(".jpg", ignoreCase = true) ||
-                                file.name.endsWith(".jpeg", ignoreCase = true) ||
-                                file.name.endsWith(".png", ignoreCase = true))
-                    }
-
-                    files?.forEach { file ->
-                        val uri = Uri.fromFile(file)
-                        val dateTaken = file.lastModified()
-
-                        try {
-                            imageInfoList.add(ImageInfo(uri, dateTaken, file.absolutePath))
-                            Log.d(tag, "Image trouvée directement: ${file.absolutePath}")
-                        } catch (e: Exception) {
-                            Log.e(tag, "Erreur avec l'image: ${file.absolutePath} - ${e.message}")
-                        }
-                    }
-                }
-            }
-
-        } catch (e: Exception) {
-            Log.e(tag, "Erreur lors de la récupération des images", e)
-        }
-
-        Log.d(tag, "Total d'images trouvées: ${imageInfoList.size}")
-        return imageInfoList
-    }
-
-
-    // Fonction pour obtenir les dossiers disponibles - Simplifiée pour se concentrer sur DCIM
-    private fun getDCIMFolders(context: Context): List<String> {
-        val folders = mutableListOf<String>()
-        val tag = "ImagesTransfer"
-
-        // Ajouter une option "Toutes les images"
-        folders.add("ALL")
-
-        // Ajouter directement DCIM et ses sous-dossiers
-        try {
-            val dcimDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
-            if (dcimDir.exists() && dcimDir.isDirectory) {
-                if (!folders.contains("DCIM")) folders.add("DCIM")
-
-                dcimDir.listFiles()?.forEach { file ->
-                    if (file.isDirectory && !folders.contains("DCIM/${file.name}")) {
-                        folders.add("DCIM/${file.name}")
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(tag, "Erreur lors de la récupération des dossiers DCIM", e)
-        }
-
-        return folders.distinct()
-    }
-
-
-
-
-    @Composable
-    fun ImagePreview(uri: Uri, label: String) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(label, style = MaterialTheme.typography.labelMedium)
-
-            Image(
-                painter = rememberAsyncImagePainter(uri),
-                contentDescription = "Image Preview",
-                modifier = Modifier
-                    .size(120.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            )
-        }
-    }
-
-    private suspend fun transferImages(
-        context: Context,
-        images: List<ImageInfo>,
-        onProgressUpdate: (Float, Int) -> Unit
-    ): Boolean {
-        // Journalisation du début du transfert
-        Log.d("ImagesTransfer", "Début du transfert de ${images.size} images")
-
-        try {
-            // Obtenir l'adresse IP du réseau WiFi
-            val wifiIp = getWifiIpAddress(context) ?: throw Exception("Impossible d'obtenir l'adresse IP")
-            Log.d("ImagesTransfer", "Adresse IP locale: $wifiIp")
-
-            // Extraire le préfixe du réseau
-            val networkPrefix = wifiIp.substringBeforeLast(".")
-
-            // Port du serveur
-            val serverPort = 8080
-
-            // Chercher le serveur sur le réseau
-            val serverIp = findServer(networkPrefix, serverPort) ?: throw Exception("Serveur non trouvé sur le réseau")
-            Log.d("ImagesTransfer", "Serveur trouvé à l'adresse: $serverIp")
-
-            // Configuration pour le transfert par lots
-            val batchSize = 50 // Taille de chaque lot
-            val batches = images.chunked(batchSize)
-            var totalTransferred = 0
-            var overallSuccess = true
-
-            // Traiter chaque lot séparément
-            for ((batchIndex, batch) in batches.withIndex()) {
-                try {
-                    Log.d("ImagesTransfer", "Traitement du lot ${batchIndex + 1}/${batches.size} (${batch.size} images)")
-
-                    withContext(Dispatchers.IO) {
-                        // Créer une nouvelle connexion pour chaque lot
-                        val url = URL("http://$serverIp:$serverPort")
-                        val connection = url.openConnection() as HttpURLConnection
-                        connection.requestMethod = "POST"
-                        connection.doOutput = true
-                        connection.connectTimeout = 30000 // 30 secondes
-                        connection.readTimeout = 180000   // 3 minutes
-                        connection.setRequestProperty("Content-Type", "application/octet-stream")
-                        connection.connect()
-
-                        var outputStream: OutputStream? = null
-                        var writer: BufferedWriter? = null
-
-                        try {
-                            outputStream = connection.outputStream
-                            writer = BufferedWriter(OutputStreamWriter(outputStream))
-
-                            // Envoyer le nombre d'images dans ce lot
-                            writer.write(batch.size.toString())
-                            writer.write("\n")
-                            writer.flush()
-
-                            // Transférer chaque image du lot
-                            batch.forEachIndexed { index, imageInfo ->
-                                try {
-                                    transferSingleImage(context, imageInfo, outputStream, writer)
-
-                                    // Mettre à jour la progression globale
-                                    totalTransferred++
-                                    val progress = totalTransferred.toFloat() / images.size
-                                    withContext(Dispatchers.Main) {
-                                        onProgressUpdate(progress, totalTransferred)
-                                    }
-
-                                    // Petit délai entre les images pour éviter la saturation
-                                    if (index < batch.size - 1) {
-                                        delay(50) // 50ms entre chaque image
-                                    }
-
-                                } catch (e: Exception) {
-                                    Log.e("ImagesTransfer", "Erreur lors du transfert de l'image ${totalTransferred + 1}", e)
-                                    // Continuer avec l'image suivante plutôt que d'arrêter tout le processus
-                                }
-                            }
-
-                            // Lire la réponse du serveur
-                            val responseCode = connection.responseCode
-                            val responseMessage = connection.responseMessage
-                            Log.d("ImagesTransfer", "Réponse du serveur pour le lot ${batchIndex + 1}: $responseCode $responseMessage")
-
-                            if (responseCode != HttpURLConnection.HTTP_OK) {
-                                Log.w("ImagesTransfer", "Le serveur a répondu avec un code d'erreur: $responseCode")
-                                overallSuccess = false
-                            }
-
-                        } finally {
-                            // Fermer les ressources dans l'ordre inverse de leur création
-                            try {
-                                writer?.close()
-                                outputStream?.close()
-                                connection.disconnect()
-                            } catch (e: Exception) {
-                                Log.e("ImagesTransfer", "Erreur lors de la fermeture des ressources", e)
-                            }
-                        }
-                    }
-
-                    // Pause entre les lots pour donner au serveur le temps de traiter
-                    if (batchIndex < batches.size - 1) {
-                        Log.d("ImagesTransfer", "Pause entre les lots")
-                        delay(1000) // 1 seconde entre les lots
-                    }
-
-                } catch (e: Exception) {
-                    Log.e("ImagesTransfer", "Erreur lors du traitement du lot ${batchIndex + 1}", e)
-                    // Ne pas interrompre l'ensemble du transfert si un lot échoue
-                    overallSuccess = false
-                }
-            }
-
-            Log.d("ImagesTransfer", "Transfert terminé. ${totalTransferred}/${images.size} images transférées avec succès")
-            return overallSuccess && totalTransferred == images.size
-
-        } catch (e: Exception) {
-            Log.e("ImagesTransfer", "Erreur globale lors du transfert", e)
-            throw e
-        }
-    }
-    private fun transferSingleImage(
-        context: Context,
-        imageInfo: ImageInfo,
-        outputStream: OutputStream,
-        writer: BufferedWriter
-    ) {
-        context.contentResolver.openInputStream(imageInfo.uri)?.use { inputStream ->
-            try {
-                // Obtenir un nom de fichier significatif et nettoyer les caractères spéciaux
-                val file = File(imageInfo.path)
-                val originalFileName = file.name
-
-                // Normaliser le nom de fichier (remplacer les caractères spéciaux)
-                val fileName = originalFileName
-                    .replace("[^a-zA-Z0-9._-]".toRegex(), "_") // Remplace tous les caractères spéciaux par _
-                    .replace("__+".toRegex(), "_") // Évite les séquences de _
-
-                // Envoyer le nom du fichier normalisé sur une ligne
-                writer.write(fileName)
-                writer.write("\n")
-
-                // Formatter la date au format attendu par le serveur (YYYYMMDD_HHmmss)
-                val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
-                val dateString = dateFormat.format(Date(imageInfo.dateTaken))
-                writer.write(dateString)
-                writer.write("\n")
-
-                // Récupérer et envoyer la taille du fichier
-                val fileSize = inputStream.available()
-                writer.write(fileSize.toString())
-                writer.write("\n")
-                writer.flush()
-
-                // Transférer le contenu du fichier
-                val buffer = ByteArray(8 * 1024)
-                var bytesRead: Int
-                var totalRead = 0
-
-                while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                    outputStream.write(buffer, 0, bytesRead)
-                    totalRead += bytesRead
-                    outputStream.flush() // Flush plus fréquent pour éviter les blocages
-                }
-
-                Log.d("ImagesTransfer", "Image transférée: $fileName ($totalRead octets)")
-            } catch (e: Exception) {
-                Log.e("ImagesTransfer", "Erreur lors du transfert de l'image ${imageInfo.path}", e)
-                throw e
-            }
-        } ?: throw Exception("Impossible d'ouvrir l'image ${imageInfo.path}")
-    }
-
-
-    private fun isConnectedToHotspot(context: Context): Boolean {
-        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-
-        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
-    }
-
-    private fun getWifiIpAddress(context: Context): String? {
-        try {
-            // D'abord, essayer via le WifiManager
-            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-            val ipAddress = wifiManager.connectionInfo.ipAddress
-
-            // Convertir l'entier en adresse IP
-            if (ipAddress != 0) {
-                return String.format(
-                    "%d.%d.%d.%d",
-                    ipAddress and 0xff,
-                    ipAddress shr 8 and 0xff,
-                    ipAddress shr 16 and 0xff,
-                    ipAddress shr 24 and 0xff
+                Text(
+                    if (isTransferring) "Transfert en cours..." 
+                    else "Transférer ${filteredImages.size} photo(s)"
                 )
             }
-
-            // Si WifiManager échoue, essayer via les interfaces réseau (fonctionne en hotspot aussi)
-            val networkInterfaces = NetworkInterface.getNetworkInterfaces()
-            while (networkInterfaces.hasMoreElements()) {
-                val networkInterface = networkInterfaces.nextElement()
-                val addresses = networkInterface.inetAddresses
-
-                while (addresses.hasMoreElements()) {
-                    val address = addresses.nextElement()
-                    if (!address.isLoopbackAddress && address is Inet4Address) {
-                        return address.hostAddress
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("ImagesTransfer", "Erreur lors de la récupération de l'adresse IP", e)
         }
-
-        return null
     }
-    private suspend fun findServer(networkPrefix: String, port: Int): String? = withContext(Dispatchers.IO) {
-        // Adresses les plus probables à essayer en premier
-        val priorityAddresses = listOf(
-            "1",    // Souvent utilisé par les routeurs
-            "100",  // Adresse commune pour les points d'accès
-            "101",  // Adresse commune secondaire
-            "254"   // Dernière adresse souvent utilisée par les hôtes
+}
+
+@Composable
+fun ImagePreview(uri: Uri, label: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            label, 
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        // D'abord, tester si le serveur est sur notre propre machine
+        Image(
+            painter = rememberAsyncImagePainter(uri),
+            contentDescription = "Image Preview",
+            modifier = Modifier
+                .size(100.dp)
+                .clip(RoundedCornerShape(8.dp)),
+            contentScale = ContentScale.Crop
+        )
+    }
+}
+
+// Fonctions utilitaires améliorées
+private fun getImagesFromFolder(context: Context, folderPath: String): List<ImageInfo> {
+    val imageInfoList = mutableListOf<ImageInfo>()
+    val contentResolver = context.contentResolver
+
+    try {
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DATE_TAKEN,
+            MediaStore.Images.Media.DATA,
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.SIZE
+        )
+
+        val selection = if (folderPath == "ALL") {
+            null
+        } else {
+            "${MediaStore.Images.Media.DATA} LIKE ?"
+        }
+
+        val selectionArgs = if (folderPath == "ALL") {
+            null
+        } else {
+            arrayOf("%$folderPath%")
+        }
+
+        val sortOrder = "${MediaStore.Images.Media.DATE_TAKEN} DESC"
+
+        val cursor = contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            sortOrder
+        )
+
+        cursor?.use { c ->
+            val idColumn = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            val dateColumn = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+            val dataColumn = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
+            val nameColumn = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+            val sizeColumn = c.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
+
+            while (c.moveToNext()) {
+                val id = c.getLong(idColumn)
+                val dateTaken = if (c.isNull(dateColumn)) {
+                    System.currentTimeMillis()
+                } else {
+                    c.getLong(dateColumn)
+                }
+                val path = c.getString(dataColumn) ?: ""
+                val name = c.getString(nameColumn) ?: "image_$id"
+                val size = if (c.isNull(sizeColumn)) 0L else c.getLong(sizeColumn)
+
+                val contentUri = ContentUris.withAppendedId(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    id
+                )
+
+                imageInfoList.add(ImageInfo(contentUri, dateTaken, path, name, size))
+            }
+        }
+    } catch (e: Exception) {
+        Log.e("ImagesTransfer", "Erreur lors de la récupération des images", e)
+    }
+
+    return imageInfoList
+}
+
+private fun getDCIMFolders(context: Context): List<String> {
+    val folders = mutableListOf("ALL", "DCIM", "Camera")
+    
+    try {
+        val projection = arrayOf(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
+        val cursor = context.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            null,
+            null,
+            "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} ASC"
+        )
+
+        cursor?.use {
+            val bucketColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
+            while (it.moveToNext()) {
+                val bucketName = it.getString(bucketColumn)
+                if (bucketName != null && !folders.contains(bucketName)) {
+                    folders.add(bucketName)
+                }
+            }
+        }
+    } catch (e: Exception) {
+        Log.e("ImagesTransfer", "Erreur lors de la récupération des dossiers", e)
+    }
+
+    return folders.distinct()
+}
+
+// NOUVELLE FONCTION DE TRANSFERT OPTIMISÉE POUR ÉVITER LES CRASHES
+private suspend fun transferImagesOptimized(
+    context: Context,
+    images: List<ImageInfo>,
+    onProgressUpdate: (Float, Int, String) -> Unit
+): Boolean = withContext(Dispatchers.IO) {
+    Log.d("ImagesTransfer", "Début du transfert de ${images.size} images")
+
+    try {
+        // 1. Trouver le serveur
+        withContext(Dispatchers.Main) {
+            onProgressUpdate(0f, 0, "Recherche du serveur...")
+        }
+        
+        val serverIp = findServerOptimized(context) 
+            ?: throw Exception("Serveur non trouvé sur le réseau")
+        
+        Log.d("ImagesTransfer", "Serveur trouvé: $serverIp")
+
+        // 2. Transférer par petits lots pour éviter les problèmes de mémoire
+        val batchSize = 15 // Lots de 5 images
+        val batches = images.chunked(batchSize)
+        var totalTransferred = 0
+
+        for ((batchIndex, batch) in batches.withIndex()) {
+            try {
+                withContext(Dispatchers.Main) {
+                    onProgressUpdate(
+                        totalTransferred.toFloat() / images.size,
+                        totalTransferred,
+                        "Transfert du lot ${batchIndex + 1}/${batches.size}..."
+                    )
+                }
+
+                // Transfert d'un lot
+                val batchSuccess = transferBatch(context, serverIp, batch) { transferredInBatch ->
+                    val currentTotal = totalTransferred + transferredInBatch
+                    val progress = currentTotal.toFloat() / images.size
+                    
+                    // Mise à jour UI sur le thread principal
+                    kotlinx.coroutines.runBlocking(Dispatchers.Main) {
+                        onProgressUpdate(progress, currentTotal, "Image ${currentTotal}/${images.size}")
+                    }
+                }
+
+                if (batchSuccess) {
+                    totalTransferred += batch.size
+                } else {
+                    Log.w("ImagesTransfer", "Échec du lot ${batchIndex + 1}")
+                    // Continuer avec le lot suivant
+                }
+
+                // Petite pause entre les lots
+                delay(100) // 100 ms pour éviter la saturation du réseau
+
+            } catch (e: Exception) {
+                Log.e("ImagesTransfer", "Erreur lors du transfert du lot ${batchIndex + 1}", e)
+                // Continuer avec le lot suivant
+            }
+        }
+
+        // 3. Résultat final
+        withContext(Dispatchers.Main) {
+            onProgressUpdate(1f, totalTransferred, "Transfert terminé")
+        }
+        
+        Log.d("ImagesTransfer", "Transfert terminé: $totalTransferred/${images.size} images")
+        return@withContext totalTransferred == images.size
+
+    } catch (e: Exception) {
+        Log.e("ImagesTransfer", "Erreur globale lors du transfert", e)
+        withContext(Dispatchers.Main) {
+            onProgressUpdate(0f, 0, "Erreur: ${e.message}")
+        }
+        throw e
+    }
+}
+
+// Fonction pour transférer un lot d'images
+private suspend fun transferBatch(
+    context: Context,
+    serverIp: String,
+    images: List<ImageInfo>,
+    onBatchProgress: (Int) -> Unit
+): Boolean = withContext(Dispatchers.IO) {
+    var connection: HttpURLConnection? = null
+    var outputStream: BufferedOutputStream? = null
+    var writer: BufferedWriter? = null
+
+    try {
+        val url = URL("http://$serverIp:8080")
+        connection = url.openConnection() as HttpURLConnection
+        connection.apply {
+            requestMethod = "POST"
+            doOutput = true
+            connectTimeout = 10000
+            readTimeout = 60000   // 1 minute par lot 
+            setRequestProperty("Content-Type", "application/octet-stream")
+            setChunkedStreamingMode(8192) // Streaming par chunks
+        }
+        
+        connection.connect()
+        
+        outputStream = BufferedOutputStream(connection.outputStream, 8192)
+        writer = BufferedWriter(OutputStreamWriter(outputStream), 8192)
+
+        // Envoyer le nombre d'images dans ce lot
+        writer.write(images.size.toString())
+        writer.write("\n")
+        writer.flush()
+
+        // Transférer chaque image du lot
+        images.forEachIndexed { index, imageInfo ->
+            try {
+                transferSingleImageOptimized(context, imageInfo, outputStream, writer)
+                onBatchProgress(index + 1)
+                
+                // Petit délai pour éviter la saturation
+                if (index < images.size - 1) {
+                    delay(50)
+                }
+            } catch (e: Exception) {
+                Log.e("ImagesTransfer", "Erreur lors du transfert de l'image ${imageInfo.name}", e)
+                // Continuer avec l'image suivante
+                throw e // Arrêter ce lot en cas d'erreur
+            }
+        }
+
+        writer.flush()
+        outputStream.flush()
+
+        // Vérifier la réponse
+        val responseCode = connection.responseCode
+        Log.d("ImagesTransfer", "Code de réponse: $responseCode")
+        
+        return@withContext responseCode == HttpURLConnection.HTTP_OK
+
+    } catch (e: Exception) {
+        Log.e("ImagesTransfer", "Erreur lors du transfert du lot", e)
+        return@withContext false
+    } finally {
+        // Nettoyage des ressources
+        try {
+            writer?.close()
+            outputStream?.close()
+            connection?.disconnect()
+        } catch (e: Exception) {
+            Log.e("ImagesTransfer", "Erreur lors de la fermeture des ressources", e)
+        }
+    }
+}
+
+// Fonction optimisée pour transférer une image unique
+private fun transferSingleImageOptimized(
+    context: Context,
+    imageInfo: ImageInfo,
+    outputStream: BufferedOutputStream,
+    writer: BufferedWriter
+) {
+    context.contentResolver.openInputStream(imageInfo.uri)?.use { inputStream ->
+        try {
+            // Nettoyer le nom de fichier
+            val fileName = imageInfo.name
+                .replace("[^a-zA-Z0-9._-]".toRegex(), "_")
+                .replace("__+".toRegex(), "_")
+
+            // Envoyer les métadonnées
+            writer.write(fileName)
+            writer.write("\n")
+
+            val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+            val dateString = dateFormat.format(Date(imageInfo.dateTaken))
+            writer.write(dateString)
+            writer.write("\n")
+
+            // Calculer la taille réelle du stream
+            val fileSize = inputStream.available()
+            writer.write(fileSize.toString())
+            writer.write("\n")
+            writer.flush()
+
+            // Transférer le contenu par chunks pour éviter les problèmes de mémoire
+            val buffer = ByteArray(4096) // Buffer plus petit
+            var bytesRead: Int
+            var totalRead = 0
+
+            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                outputStream.write(buffer, 0, bytesRead)
+                totalRead += bytesRead
+                
+                // Flush périodique pour éviter l'accumulation en mémoire
+                if (totalRead % 32768 == 0) { // Tous les 32KB
+                    outputStream.flush()
+                }
+            }
+            
+            outputStream.flush()
+            Log.d("ImagesTransfer", "Image transférée: $fileName ($totalRead octets)")
+            
+        } catch (e: Exception) {
+            Log.e("ImagesTransfer", "Erreur lors du transfert de l'image ${imageInfo.name}", e)
+            throw e
+        }
+    } ?: throw Exception("Impossible d'ouvrir l'image ${imageInfo.name}")
+}
+
+// Fonction optimisée de recherche de serveur
+private suspend fun findServerOptimized(context: Context): String? = withContext(Dispatchers.IO) {
+    try {
+        // D'abord essayer localhost
         try {
             val socket = Socket()
-            socket.connect(InetSocketAddress("127.0.0.1", port), 300)
+            socket.connect(InetSocketAddress("127.0.0.1", 8080), 1000)
             socket.close()
-            Log.d("ImagesTransfer", "Serveur trouvé sur localhost")
             return@withContext "127.0.0.1"
         } catch (e: Exception) {
-            // Ignorer et continuer
+            // Localhost ne fonctionne pas, continuer
         }
 
-        // Ensuite, essayer les adresses prioritaires
-        for (lastOctet in priorityAddresses) {
-            val potentialServer = "$networkPrefix.$lastOctet"
+        // Obtenir l'IP locale
+        val localIp = getWifiIpAddress(context) ?: return@withContext null
+        val networkPrefix = localIp.substringBeforeLast(".")
+        
+        // Essayer les adresses les plus communes
+        val commonAddresses = listOf("1", "100", "101", "254", "192")
+        
+        for (lastOctet in commonAddresses) {
+            val serverIp = "$networkPrefix.$lastOctet"
             try {
                 val socket = Socket()
-                socket.soTimeout = 500
-                socket.connect(InetSocketAddress(potentialServer, port), 500)
-
-                // Vérifier si c'est bien notre serveur en envoyant une requête GET
-                try {
-                    val urlConnection = URL("http://$potentialServer:$port").openConnection() as HttpURLConnection
-                    urlConnection.requestMethod = "GET"
-                    urlConnection.connectTimeout = 500
-                    urlConnection.readTimeout = 500
-                    val responseCode = urlConnection.responseCode
-
-                    if (responseCode == HttpURLConnection.HTTP_OK) {
-                        socket.close()
-                        Log.d("ImagesTransfer", "Serveur vérifié à l'adresse $potentialServer")
-                        return@withContext potentialServer
-                    }
-                } catch (e: Exception) {
-                    // Si la connexion TCP a réussi mais la requête HTTP a échoué,
-                    // considérons quand même que c'est peut-être notre serveur
-                    socket.close()
-                    Log.d("ImagesTransfer", "Serveur potentiel trouvé à $potentialServer (sans vérification HTTP)")
-                    return@withContext potentialServer
-                }
-
+                socket.connect(InetSocketAddress(serverIp, 8080), 500)
                 socket.close()
+                return@withContext serverIp
             } catch (e: Exception) {
-                // Ignorer et essayer l'adresse suivante
+                // Continuer avec l'adresse suivante
             }
         }
+        
+        null
+    } catch (e: Exception) {
+        Log.e("ImagesTransfer", "Erreur lors de la recherche du serveur", e)
+        null
+    }
+}
 
-        // Scan progressif du réseau, en commençant par les adresses plus susceptibles d'être assignées
-        // aux serveurs ou PC (2-20, 100-110, 200-254)
-        val scanRanges = listOf(2..20, 100..110, 200..254, 21..99, 111..199)
+private fun isConnectedToHotspot(context: Context): Boolean {
+    val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val network = connectivityManager.activeNetwork ?: return false
+    val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+    return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+}
 
-        for (range in scanRanges) {
-            for (i in range) {
-                val potentialServer = "$networkPrefix.$i"
-                try {
-                    val socket = Socket()
-                    socket.connect(InetSocketAddress(potentialServer, port), 300)
-                    socket.close()
-                    Log.d("ImagesTransfer", "Serveur trouvé à l'adresse $potentialServer")
-                    return@withContext potentialServer
-                } catch (e: Exception) {
-                    // Ignorer les échecs et passer à l'adresse suivante
-                    continue
+private fun getWifiIpAddress(context: Context): String? {
+    try {
+        val networkInterfaces = NetworkInterface.getNetworkInterfaces()
+        while (networkInterfaces.hasMoreElements()) {
+            val networkInterface = networkInterfaces.nextElement()
+            val addresses = networkInterface.inetAddresses
+            
+            while (addresses.hasMoreElements()) {
+                val address = addresses.nextElement()
+                if (!address.isLoopbackAddress && address is Inet4Address) {
+                    return address.hostAddress
                 }
             }
         }
-
-        null // Aucun serveur trouvé
+    } catch (e: Exception) {
+        Log.e("ImagesTransfer", "Erreur lors de la récupération de l'IP", e)
     }
+    return null
+}
