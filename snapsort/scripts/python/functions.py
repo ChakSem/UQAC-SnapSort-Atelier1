@@ -64,7 +64,7 @@ def set_parser_fill_database():
     parser = argparse.ArgumentParser()
 
     # Training arguments
-    parser.add_argument('--copy_directory', type=str, default="")
+    parser.add_argument('--copy_directory', type=str, default="..\photos_victor")
 
     args = parser.parse_args()
 
@@ -94,8 +94,20 @@ def reverse_geocode_lib(lat, lon):
     except Exception as e:
         print(f"Erreur sur coords ({lat}, {lon}) : {e}")
         return None
+    
+def reverse_geocode_lib_large(lat, lon):
+    loc = []
+    try:
+        result = rg.search((lat, lon), mode=1)[0]
+        country = result.get('cc', '')
+        region = result.get('admin1', '')
+        city = result.get('name', '')
+        return f"{country}, {region}, {city}"
+    except Exception as e:
+        print(f"Erreur sur coords ({lat}, {lon}) : {e}")
+        return None
 
-def get_localisation(latitude, longitude, cache):
+def get_localisation(latitude, longitude, cache, type="small"):
     lat = round(latitude, 3)
     lon = round(longitude, 3)
     coords = (lat, lon)
@@ -103,10 +115,16 @@ def get_localisation(latitude, longitude, cache):
     if coords in cache:
         localisation = cache[coords]
     else:
-        localisation = reverse_geocode_lib(*coords)
+        if type == "small":
+            localisation = reverse_geocode_lib(*coords)
+        elif type == "large":
+            localisation = reverse_geocode_lib_large(*coords)
+        else:
+            localisation = None
         cache[coords] = localisation
 
     return localisation
+
 
 def create_arborescence_from_csv(csv_file):
     data = pd.read_csv(csv_file)

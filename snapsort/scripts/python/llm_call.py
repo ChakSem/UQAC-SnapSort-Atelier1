@@ -10,7 +10,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 
 from image_details import ImageDetails
-from functions import get_image_paths, set_parser_fill_database
+from functions import get_image_paths, set_parser_fill_database, get_localisation
 from chroma_db import ChromaDatabase
 
 class LLMCall:
@@ -127,6 +127,7 @@ Les champs doivent s'appeler 'name' et 'description' respectivement."""
     def pipeline_calls(self, image_paths, database):
 
         processed_files = database.get_processed_files()
+        cache = {}
 
         counter = 1
         for image_path in image_paths:
@@ -140,9 +141,16 @@ Les champs doivent s'appeler 'name' et 'description' respectivement."""
             else:
                 image_details = self.analyze_image(image_path)
                 print(image_details)
-                doc = Document(id=str(uuid.uuid4()), page_content=image_details.get_page_content(), metadata=image_details.to_dict())
+                metadata = image_details.to_dict()
+
+                if image_details.latitude and image_details.longitude :
+                    localisation = get_localisation(image_details.latitude, image_details.longitude, cache, "large")
+                    metadata['localisation'] = localisation  # Ajout de la localisation dans le metadata
+
+                doc = Document(id=str(uuid.uuid4()), page_content=image_details.get_page_content(), metadata=metadata)
+                print(doc)
                 database.db.add_documents([doc])
-            counter += 1
+                counter += 1
 
 
 
