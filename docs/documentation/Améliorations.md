@@ -1,0 +1,2 @@
+- Changer la librairie `reverse_geocoder` pour avoir plus d'informations de localisations
+- Il y a actuellement 2 appels de recherche de localisation => faire un seul appel et stocker les résultats dans la classe `Image_details` 
