@@ -27,7 +27,13 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         
         setContent {
-            SnapSortTheme {
+            // Utilisation du nouveau thème SnapSort professionnel
+            SnapSortTheme(
+                // Force l'utilisation du thème personnalisé (recommandé)
+                useCustomTheme = true,
+                // Les couleurs dynamiques sont désactivées pour préserver l'identité visuelle
+                dynamicColor = false
+            ) {
                 AppNavigation()
             }
         }
