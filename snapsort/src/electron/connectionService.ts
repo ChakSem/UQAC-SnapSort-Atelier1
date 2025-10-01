@@ -33,7 +33,7 @@ class ConnectionService {
 
   // Récupère le SSID du point d'accès
   async getHotspotSSID(): Promise<string> {
-    const scriptPath = getScriptsPath('getSSID.ps1');
+    const scriptPath = getScriptsPath('powershell/getSSID.ps1');
     const command = `powershell -ExecutionPolicy Bypass -File "${scriptPath}"`;
     
     try {
@@ -47,7 +47,7 @@ class ConnectionService {
 
   // Récupère la clé de sécurité du point d'accès
   async getHotspotSecurityKey(): Promise<string> {
-    const scriptPath = getScriptsPath('getSecurityKey.ps1');
+    const scriptPath = getScriptsPath('powershell/getSecurityKey.ps1');
     const command = `powershell -ExecutionPolicy Bypass -File "${scriptPath}"`;
     
     try {
@@ -61,7 +61,7 @@ class ConnectionService {
 
   // Récupère les informations WiFi complètes
   async getWifiCredentials(): Promise<WifiCredentials> {
-    const scriptPath = getScriptsPath('getWifiInfo.ps1');
+    const scriptPath = getScriptsPath('powershell/getWifiInfo.ps1');
     const command = `powershell -ExecutionPolicy Bypass -File "${scriptPath}"`;
     
     try {

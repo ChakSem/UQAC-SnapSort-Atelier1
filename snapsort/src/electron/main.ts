@@ -264,16 +264,6 @@ ipcMain.handle("set-global-variables", (_, key, value) => {
   globalStore.set(key, value);
 });
 
-// Récupérer une valeur du store
-ipcMain.handle("get-global-variables", (_, key) => {
-  return globalStore.get(key);
-});
-
-// Enregistrer une valeur dans le store
-ipcMain.handle("set-global-variables", (_, key, value) => {
-  globalStore.set(key, value);
-});
-
 // ========== Gestionnaires Connexion Hotspot ==========
 
 ipcMain.handle("start-hotspot", async () => {
