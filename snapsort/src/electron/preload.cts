@@ -31,19 +31,26 @@ let logHandler: ((event: any, msg: string) => void) | null = null;
 
 // Exposition des APIs Electron au renderer process
 contextBridge.exposeInMainWorld('electron', {
-  
-  // ========== GESTIONNAIRES PYTHON ==========
-  runPython: () => ipcRenderer.invoke('run-python'),
-  onPythonLog: (callback: (msg: string) => void) => {
-      logHandler = (_, msg) => callback(msg);
-      ipcRenderer.on("log", logHandler);
-  },
-  removePythonLogListener: () => {
-      if (logHandler) {
-          ipcRenderer.removeListener("log", logHandler);
-          logHandler = null;
-      }
-  },
+    // Python script
+    runPython: () => ipcRenderer.invoke('run-python'),
+    runImageRetrival: (prompt: string) => ipcRenderer.invoke('run-image-retrieval', prompt),
+    runPythonFillDatabase: () => ipcRenderer.invoke('run-python-fill-database'),
+    onPythonLog: (callback: (msg: string) => void) => {
+        logHandler = (_, msg) => callback(msg);
+        ipcRenderer.on("log", logHandler);
+    },
+    removePythonLogListener: () => {
+        if (logHandler) {
+            ipcRenderer.removeListener("log", logHandler);
+            logHandler = null;
+        }
+    },
+    onPythonEnd: (callback: () => void) => {
+        ipcRenderer.on("python-end", callback);
+    },
+    removePythonEndListener: (callback: () => void) => {
+        ipcRenderer.removeListener("python-end", callback);
+    },
 
 
   // ========== GESTIONNAIRES PARAMÈTRES ==========

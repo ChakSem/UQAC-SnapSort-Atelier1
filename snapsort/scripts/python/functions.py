@@ -6,12 +6,13 @@ import pandas as pd
 import numpy as np
 import reverse_geocoder as rg
 
-def set_parser():
+def set_parser_main():
     parser = argparse.ArgumentParser()
 
     # Training arguments
     parser.add_argument('--directory', type=str, default="unsorted_images")
     parser.add_argument('--destination_directory', type=str, default="albums")
+    parser.add_argument('--copy_directory', type=str, default="all_images")
 
     args = parser.parse_args()
 
@@ -20,6 +21,59 @@ def set_parser():
     print("------------------------------------")
 
     return args
+
+def get_image_paths(directory, allowed_extensions=None):
+    if not allowed_extensions :
+        allowed_extensions={".jpg", ".jpeg", ".png"}
+        image_paths = [os.path.join(directory, filename) for filename in os.listdir(directory) if os.path.splitext(filename)[1].lower() in allowed_extensions]
+    elif allowed_extensions == "All":
+        image_paths = [os.path.join(directory, filename) for filename in os.listdir(directory) if os.path.isfile(os.path.join(directory, filename))]
+    return image_paths
+
+def copy_all_images(source_directory, destination_directory):
+    if not os.path.exists(destination_directory):
+        os.makedirs(destination_directory)
+
+    image_paths = get_image_paths(source_directory, allowed_extensions="All")
+
+    for image_path in image_paths:
+        destination_path = os.path.join(destination_directory, os.path.basename(image_path))
+        shutil.copy(image_path, destination_path)
+        print(f"Copié : {image_path} -> {destination_path}")
+
+def empty_directory(directory):
+    if os.path.exists(directory):
+            shutil.rmtree(directory)
+    os.makedirs(directory, exist_ok=True)
+
+def set_parser_image_retrieval():
+    parser = argparse.ArgumentParser()
+
+    # Training arguments
+    parser.add_argument('--prompt', type=str, default=" ")
+
+    args = parser.parse_args()
+
+    print("\n----------- Arguments --------------")
+    print(args)
+    print("------------------------------------")
+
+    return args
+
+def set_parser_fill_database():
+    parser = argparse.ArgumentParser()
+
+    # Training arguments
+    parser.add_argument('--copy_directory', type=str, default="..\photos_victor")
+
+    args = parser.parse_args()
+
+    print("\n----------- Arguments --------------")
+    print(args)
+    print("------------------------------------")
+
+    return args
+
 
 def get_season(month):
     if month in [12, 1, 2]:
@@ -40,8 +94,20 @@ def reverse_geocode_lib(lat, lon):
     except Exception as e:
         print(f"Erreur sur coords ({lat}, {lon}) : {e}")
         return None
+    
+def reverse_geocode_lib_large(lat, lon):
+    loc = []
+    try:
+        result = rg.search((lat, lon), mode=1)[0]
+        country = result.get('cc', '')
+        region = result.get('admin1', '')
+        city = result.get('name', '')
+        return f"{country}, {region}, {city}"
+    except Exception as e:
+        print(f"Erreur sur coords ({lat}, {lon}) : {e}")
+        return None
 
-def get_localisation(latitude, longitude, cache):
+def get_localisation(latitude, longitude, cache, type="small"):
     lat = round(latitude, 3)
     lon = round(longitude, 3)
     coords = (lat, lon)
@@ -49,10 +115,16 @@ def get_localisation(latitude, longitude, cache):
     if coords in cache:
         localisation = cache[coords]
     else:
-        localisation = reverse_geocode_lib(*coords)
+        if type == "small":
+            localisation = reverse_geocode_lib(*coords)
+        elif type == "large":
+            localisation = reverse_geocode_lib_large(*coords)
+        else:
+            localisation = None
         cache[coords] = localisation
 
     return localisation
+
 
 def create_arborescence_from_csv(csv_file):
     data = pd.read_csv(csv_file)

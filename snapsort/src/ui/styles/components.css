@@ -69,6 +69,11 @@
     background-color: var(--secondary-button-bg);
     color: var(--secondary-text);
   }
+
+  .sidebar-item.active {
+    background-color: var(--secondary-button-bg);
+    color: var(--secondary-text);
+  }
   
   .sidebar-icon {
     width: 50px;
@@ -541,4 +546,58 @@
 .connexion-container {
   overflow-y: scroll;
   height: 100vh;
+}
+
+/* All Images.css */
+.all-images {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--third-bg);
+}
+
+.all-images-header {
+  padding: 20px;
+  width: 90%;
+  
+}
+
+.search-bar {
+  width: 100%;
+}
+
+.all-images-header input{
+  padding: 10px;
+  border-radius: 20px;
+  border: 1px solid var(--third-bg);
+  font-size: 15px;
+  width: 90%;
+}
+
+.all-images-header-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+}
+
+.all-images-header-search {
+  display: flex;
+  align-items: center;
+  justify-content: right;
+}
+
+.all-images-header-search button{
+  border-radius: 20px;
+  border: none;
+  background-color: var(--third-button-bg);
+  color: white;
+}
+
+.all-images-header span{
+  padding: 15px;
+  margin: 0px;
+  font-size: 1.2rem;
+  font-weight: bold;
 }

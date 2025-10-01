@@ -8,7 +8,7 @@ export const getFolders = (folderPath: string): any[] => {
             const fullPath = path.join(folderPath, file);
 
             // Ignorer les dossiers "unsorted_images" et "temp" à la racine
-            if (folderPath === path.resolve(folderPath) && (file === 'unsorted_images' || file === 'temp')) {
+            if (folderPath === path.resolve(folderPath) && (file === 'unsorted_images' || file === 'temp' || file === 'all_images')) {
                 return null; // Ignorer ce dossier
             }
 
