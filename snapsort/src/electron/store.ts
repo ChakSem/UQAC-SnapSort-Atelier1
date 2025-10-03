@@ -14,7 +14,14 @@ const store = new Store<SettingsSchema>({
 const globalStore = new Store<GlobalVarsSchema>({
   name: "global",
   defaults: {
-    AIProcessing: false,
+    AIFillingDatabase: false,
+    AIFillingDatabaseProgress: 0,
+
+    AISorting: false,
+    AISortingProgress: 0,
+    
+    AISearching: false,
+    AISearchingProgress: 0,
   },
 });
 

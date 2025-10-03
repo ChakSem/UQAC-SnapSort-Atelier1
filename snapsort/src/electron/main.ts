@@ -9,7 +9,7 @@ import {
 } from './server.js';
 import path from 'path';
 import fs from 'fs';
-import { isDev, cleanTempFolder, generateThumbnail, lireListeImages } from './util.js';
+import { isDev, cleanTempFolder, generateThumbnail } from './util.js';
 import { getPreloadPath } from './pathResolver.js';
 // Import depuis le nouveau service
 import connectionService from './connectionService.js';
@@ -17,9 +17,7 @@ import connectionService from './connectionService.js';
 import { getConnectedDevices, getNetworkStats } from './networkScanner.js';
 import { store, globalStore } from "./store.js";
 import { getFolders } from './folderManager.js';
-import { runImageRetrieval, runPythonFile, runPythonFillDatabase } from './python/runMain.js';
-import { setupPythonEnv } from './python/setupPythonEnv.js';
-import { getScriptsPath } from './pathResolver.js';
+import { fillDatabase, sortImages, retrieveImages } from './python/functions.js';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -40,9 +38,6 @@ app.on('ready', () => {
     frame: true
   });
 
-  // Set global variable AIProcessing to true
-  globalStore.set("AIProcessing", false);
-
   if (isDev()) {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
@@ -50,137 +45,37 @@ app.on('ready', () => {
   else {
     mainWindow.loadFile(path.join(app.getAppPath(), '/dist-react/index.html'));
   }
+
+  // Set global variables to false
+  globalStore.set("AIFillingDatabase", false);
+  globalStore.set("AISorting", false);
+  globalStore.set("AISearching", false);
 });
 
-// Execute Python Script Handler
-ipcMain.handle('run-python', async (event) => {
+// ========== Handlers Python Scripts ==========
+
+// Sort Images
+ipcMain.handle('run-python-sort-images', async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (!win) return { error: "No window found" };
-
-  // Set global variable AIProcessing to true
-  globalStore.set("AIProcessing", true);
-
-  // Define the log/error forwarding functions ONCE
-  const forwardLog = (msg: string) => win.webContents.send('log', msg);
-
-  // Récupérer le chemin du dossier principal
-  const rootPath = store.get("directoryPath") as string;
-  if (!rootPath) {
-    return { error: "No root directory path set" };
-  }
-
-  const unsortedImagesPath = path.join(rootPath, "unsorted_images");
-  if (!fs.existsSync(unsortedImagesPath)) {
-    console.log("No images to sort : unsorted_images folder not found");
-    return unsortedImagesPath;
-  }
-  // Si le dossier existe, vérifier qu'il n'est pas vide
-  const files = fs.readdirSync(unsortedImagesPath);
-  if (files.length === 0) {
-    console.log("No images to sort : unsorted_images folder is empty");
-    return unsortedImagesPath;
-  }
-
-  const albumsPath = path.join(rootPath, 'albums');
-  if (!fs.existsSync(albumsPath)) {
-    fs.mkdirSync(albumsPath, { recursive: true });
-  }
-
-  // Vérifier que le dossier "all_images" existe
-  const allImagesPath = path.join(rootPath, 'all_images');
-  if (!fs.existsSync(allImagesPath)) {
-    // Si le dossier n'existe pas, le créer
-    fs.mkdirSync(allImagesPath, { recursive: true });
-  }
-
-  // Vérifier que l'environnement Python est prêt
-  await setupPythonEnv({ onLog: forwardLog });
-
-  // Exécuter le script Python
-  forwardLog("[COMMENT]: unsortedImagesPath:" + unsortedImagesPath);
-  forwardLog("[COMMENT]: albumsPath: " + albumsPath);
-  forwardLog("[COMMENT]: allImagesPath: " + allImagesPath);
-  forwardLog("[COMMENT]: Running Python script...");
-
-  await runPythonFile({
-    directory: unsortedImagesPath,
-    destination_directory: albumsPath,
-    copy_directory: allImagesPath,
-    onLog: forwardLog,
-  });
-
-  // Set global variable AIProcessing to false
-  globalStore.set("AIProcessing", false);
-  win.webContents.send('python-end');
+  return sortImages(win);
 });
 
-// Execute Python Script Handler
-ipcMain.handle('run-image-retrieval', async (event, prompt: string) => {
+// Retrieve Images
+ipcMain.handle('run-python-retrieve-images', async (event, prompt: string) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (!win) return { error: "No window found" };
-
-  // Define the log/error forwarding functions ONCE
-  const forwardLog = (msg: string) => win.webContents.send('log', msg);
-
-  // Vérifier que l'environnement Python est prêt
-  await setupPythonEnv({ onLog: forwardLog });
-
-  await runImageRetrieval({
-    prompt: prompt,
-    onLog: forwardLog,
-  });
-
-  // Get temp files
-  const tempFilesPath = getScriptsPath("temp_files");
-  //check if directory exists
-  if (!fs.existsSync(tempFilesPath)) {
-    return { error: "The directory 'temp_files' has not been found" };
-  }
-
-  // Get json file
-  const jsonPath = path.join(tempFilesPath, "similar_images.json");
-  if (!fs.existsSync(jsonPath)) {
-    return { error: "No json file found" };
-  }
-
-  // Read the json file
-  const ImagesList = lireListeImages(jsonPath);
-
-  return ImagesList;
+  return retrieveImages(win, prompt);
 });
 
+// Fill Chroma Database
 ipcMain.handle('run-python-fill-database', async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (!win) return { error: "No window found" };
-
-  // Define the log/error forwarding functions ONCE
-  const forwardLog = (msg: string) => win.webContents.send('log', msg);
-
-  // Récupérer le chemin du dossier principal
-  const rootPath = store.get("directoryPath") as string;
-  if (!rootPath) return { error: "No root directory path set" };
-
-  // Vérifier que le dossier "all_images" existe
-  const allImagesPath = path.join(rootPath, 'all_images');
-  if (!fs.existsSync(allImagesPath)) {
-    return { error: "No images to fill database: all_images folder not found" };
-  }
-
-  // vérifie l'installation de l'environnement Python
-  await setupPythonEnv({ onLog: forwardLog });
-
-  // Exécuter le script Python
-  forwardLog("[COMMENT]: allImagesPath: " + allImagesPath);
-  forwardLog("[COMMENT]: Running Python script to fill database...");
-
-  await runPythonFillDatabase({
-    copy_directory: allImagesPath,
-    onLog: forwardLog,
-  });
-
+  return fillDatabase(win);
 });
 
-// ========== Gestionnaires Paramètres ==========
+// ========== Handlers Parameters ==========
 
 ipcMain.handle("get-setting", (_, key) => {
   return store.get(key);
@@ -202,12 +97,12 @@ ipcMain.handle("select-directory", async () => {
   return null;
 });
 
-// ========== Gestionnaires Fichiers Média ==========
+// ========== Handlers Media Files ==========
 
 ipcMain.handle("get-media-files", async (_, directoryPath) => {
   const rootPath = store.get("directoryPath") as string;
   if (!rootPath) {
-    return { error: "Aucun chemin de dossier racine défini" };
+    return { error: "No root directory path set" };
   }
 
   const tempDirectoryPath = path.join(rootPath, "temp");

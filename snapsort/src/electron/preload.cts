@@ -27,31 +27,63 @@ const VALID_CHANNELS = [
   'transfer:service-stopped'
 ] as const;
 
-let logHandler: ((event: any, msg: string) => void) | null = null;
+// Keep a distinct handler per python log type to avoid overwriting across pages
+const logHandlers: Partial<Record<'sorting' | 'retrieval' | 'database', (event: any, msg: string) => void>> = {};
 
 // Exposition des APIs Electron au renderer process
 contextBridge.exposeInMainWorld('electron', {
-    // Python script
-    runPython: () => ipcRenderer.invoke('run-python'),
-    runImageRetrival: (prompt: string) => ipcRenderer.invoke('run-image-retrieval', prompt),
+
+  // ========== Handlers Python Scripts ==========
+    // Python scripts
+    runPythonSortImages: () => ipcRenderer.invoke('run-python-sort-images'),
+    runPythonRetrieveImages: (prompt: string) => ipcRenderer.invoke('run-python-retrieve-images', prompt),
     runPythonFillDatabase: () => ipcRenderer.invoke('run-python-fill-database'),
-    onPythonLog: (callback: (msg: string) => void) => {
-        logHandler = (_, msg) => callback(msg);
-        ipcRenderer.on("log", logHandler);
+
+    // Log handlers
+    // Python log handlers
+    onPythonLog: (type: 'sorting' | 'retrieval' | 'database', callback: (msg: string) => void) => {
+        // Remove any existing handler for this type first to avoid duplicates
+        const existing = logHandlers[type];
+        if (existing) {
+            ipcRenderer.removeListener(`log-python-${type}`, existing);
+        }
+        const handler = (_: any, msg: string) => callback(msg);
+        logHandlers[type] = handler;
+        ipcRenderer.on(`log-python-${type}`, handler);
     },
-    removePythonLogListener: () => {
-        if (logHandler) {
-            ipcRenderer.removeListener("log", logHandler);
-            logHandler = null;
+    removePythonLogListener: (type: 'sorting' | 'retrieval' | 'database') => {
+        const handler = logHandlers[type];
+        if (handler) {
+            ipcRenderer.removeListener(`log-python-${type}`, handler);
+            delete logHandlers[type];
         }
     },
-    onPythonEnd: (callback: () => void) => {
-        ipcRenderer.on("python-end", callback);
-    },
-    removePythonEndListener: (callback: () => void) => {
-        ipcRenderer.removeListener("python-end", callback);
-    },
 
+    // Python end handlers (distinct per type)
+    onPythonEnd: (type: 'sorting' | 'retrieval' | 'database', callback: () => void) => {
+        // Keep one end handler per channel to avoid accidental removal
+        const key = `python-${type}-end` as const;
+        // Remove any existing anonymous wrapper for this type before adding
+        const existing = (ipcRenderer as any)._snapsortEndHandlers?.[type];
+        if (existing) {
+            ipcRenderer.removeListener(key, existing);
+        }
+        const handler = () => callback();
+        (ipcRenderer as any)._snapsortEndHandlers = {
+            ...(ipcRenderer as any)._snapsortEndHandlers,
+            [type]: handler
+        };
+        ipcRenderer.on(key, handler);
+    },
+    removePythonEndListener: (type: 'sorting' | 'retrieval' | 'database', _callback: () => void) => {
+        const key = `python-${type}-end` as const;
+        const map = (ipcRenderer as any)._snapsortEndHandlers || {};
+        const handler = map[type];
+        if (handler) {
+            ipcRenderer.removeListener(key, handler);
+            delete (ipcRenderer as any)._snapsortEndHandlers[type];
+        }
+    },
 
   // ========== GESTIONNAIRES PARAMÈTRES ==========
   getSetting: (key: string) => ipcRenderer.invoke('get-setting', key),

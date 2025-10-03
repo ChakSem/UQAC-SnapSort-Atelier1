@@ -9,7 +9,6 @@ function UnsortedImages() {
   const [files, setFiles] = useState<MediaFile[]>([]);
   const [status, setStatus] = useState<Status>('no-loading');
   const [logs, setLogs] = useState<string[]>([]);
-  const [aiProcessing, setAIProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const navigate = useNavigate();
 
@@ -19,7 +18,7 @@ function UnsortedImages() {
 
     // Call the Python script
     try {
-      const output = await (window as any).electron.runPython();
+      const output = await (window as any).electron.runPythonSortImages();
       console.log(output);
     } catch (error) {
       console.log(`Error: ${error}`);
@@ -64,26 +63,32 @@ function UnsortedImages() {
       const progress2 = (parseInt(nbr3) / parseInt(nbr4)) * gap;
       const progress = Math.round(progress1 + progress2);
       setProgress(progress);
+      // Set the global variable AISortingProgress
+      (window as any).electron.setGlobalVariables("AISortingProgress", progress);
+
     } else {
       console.log(`Does not match: ${msg}`);
     }
   }
 
   useEffect(() => {
-    // Charger la variable globale AIProcessing
-    (window as any).electron.getGlobalVariables("AIProcessing").then((value: boolean) => {
-      setAIProcessing(value);
+    // Load the global variable AISorting and AISortingProgress
+    (window as any).electron.getGlobalVariables("AISorting").then((value: boolean) => {
       setStatus(value ? 'loading' : 'no-loading');
     });
 
-    // Charger le chemin du dossier principal
+    (window as any).electron.getGlobalVariables("AISortingProgress").then((value: number) => {
+      setProgress(value);
+    });
+
+    // Load the root directory path
     (window as any).electron.getSetting("directoryPath").then((path: string) => {
       
       if (path) {
-        // Créer le chemin vers le sous-dossier "unsorted_images"
+        // Create the path to the "unsorted_images" subfolder
         const unsortedPath = `${path}${path.endsWith('/') || path.endsWith('\\') ? '' : '/'}unsorted_images`;
         
-        // Charger les fichiers du sous-dossier
+        // Load the files from the subfolder
         (window as any).electron.getMediaFiles(unsortedPath).then((response: any) => {
           if (response.files) {
             setFiles(response.files);
@@ -97,14 +102,14 @@ function UnsortedImages() {
 
   useEffect(() => {
     
-    // Écouter les événements du script Python
-    (window as any).electron.onPythonLog(handleLog);
-    (window as any).electron.onPythonEnd(handlePythonEnd);
+    // Listen to the Python script log and end events
+    (window as any).electron.onPythonLog('sorting', handleLog);
+    (window as any).electron.onPythonEnd('sorting', handlePythonEnd);
 
-    // Nettoyage pour éviter les doublons
+    // Clean up to avoid duplicates
     return () => {
-      (window as any).electron.removePythonLogListener?.(handleLog);
-      (window as any).electron.removePythonEndListener?.(handlePythonEnd);
+      (window as any).electron.removePythonLogListener('sorting');
+      (window as any).electron.removePythonEndListener('sorting', handlePythonEnd);
     };
   }, []);
 
@@ -164,7 +169,8 @@ function UnsortedImages() {
           <button
             style={{
               backgroundColor: "var(--fourth-button-bg)",
-              cursor: "not-allowed"
+              cursor: "pointer"
+              // cursor: "not-allowed"
             }}
           >
             Tri automatique</button>

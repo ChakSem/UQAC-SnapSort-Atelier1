@@ -17,10 +17,8 @@ const AllImages =() => {
 
         // Call the Python script
         try {
-        const listOrder = await (window as any).electron.runImageRetrival(prompt);
-            console.log("List order from Python:", listOrder);
+        const listOrder = await (window as any).electron.runPythonRetrieveImages(prompt);
             const newOrderedFiles = reorderImages(files, listOrder);
-            console.log("Reordered files:", newOrderedFiles);
             setFiles(newOrderedFiles);
         } catch (error) {
             console.log(`Error: ${error}`);
@@ -89,14 +87,18 @@ const AllImages =() => {
 
     useEffect(() => {
     
-        // Écouter les événements du script Python
-        (window as any).electron.onPythonLog(handleLog);
-
-        // Nettoyage pour éviter les doublons
+        // Listen to the Python script log and end events
+        (window as any).electron.onPythonLog('retrieval', handleLog);
+        (window as any).electron.onPythonLog('database', handleLog);
+        (window as any).electron.onPythonEnd('database', handleLog);
+    
+        // Clean up to avoid duplicates
         return () => {
-        (window as any).electron.removePythonLogListener?.(handleLog);
+          (window as any).electron.removePythonLogListener('retrieval');
+          (window as any).electron.removePythonLogListener('database');
+          (window as any).electron.removePythonEndListener('database');
         };
-    }, []);
+      }, []);
 
 
     return (

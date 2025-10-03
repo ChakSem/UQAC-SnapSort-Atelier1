@@ -25,6 +25,10 @@ export interface SettingsSchema {
 }
 
 export interface GlobalVarsSchema {
-  AIProcessing: boolean;
-  // Ajoute ici d'autres variables globales si besoin
+  AIFillingDatabase: boolean;
+  AIFillingDatabaseProgress: number;
+  AISorting: boolean;
+  AISortingProgress: number;
+  AISearching: boolean;
+  AISearchingProgress: number;
 }

@@ -50,7 +50,7 @@ function runPythonScriptWithArgs({
 
 // Now use the helper in your exported functions
 
-export const runPythonFile = ({ directory, destination_directory, copy_directory, onLog }: RunPythonOptions) => {
+export const runPythonSortImages = ({ directory, destination_directory, copy_directory, onLog }: RunPythonOptions) => {
   return runPythonScriptWithArgs({
     scriptPath: pythonScript,
     args: [
@@ -63,7 +63,7 @@ export const runPythonFile = ({ directory, destination_directory, copy_directory
   });
 };
 
-export const runImageRetrieval = ({ prompt, onLog }: RunImageRetrievalOptions) => {
+export const runPythonRetreiveImages = ({ prompt, onLog }: RunImageRetrievalOptions) => {
   return runPythonScriptWithArgs({
     scriptPath: pythonImageRetrievalScript,
     args: [

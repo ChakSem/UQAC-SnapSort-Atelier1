@@ -133,7 +133,7 @@ Les champs doivent s'appeler 'name' et 'description' respectivement."""
         for image_path in image_paths:
             image_name = os.path.basename(image_path)
             print('---------------------------------------------------------------')
-            print(f'{counter} / {len(image_paths)}')
+            print(f'[PERCENTAGE]: {counter} / {len(image_paths)}')
             print(image_name)
             print('\n')
             if image_name in processed_files:
