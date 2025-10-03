@@ -68,6 +68,9 @@ const sortImages = async (win: BrowserWindow) => {
   globalStore.set("AISorting", false);
   globalStore.set("AISortingProgress", 0);
   win.webContents.send('python-sorting-end');
+
+  // Put the new images into the chroma database
+  await fillDatabase(win);
 };
 
 
@@ -107,6 +110,10 @@ const retrieveImages = async (win: BrowserWindow, prompt: string) => {
   
 // Run Python Fill Database
 const fillDatabase = async (win: BrowserWindow) => {
+
+  // Set global variable AIFillingDatabase to true
+  globalStore.set("AIFillingDatabase", true);
+
   // Define the log/error forwarding functions ONCE
   const forwardLog = (msg: string) => win.webContents.send('log-python-database', msg);
 
@@ -132,6 +139,8 @@ const fillDatabase = async (win: BrowserWindow) => {
     onLog: forwardLog,
   });
 
+  globalStore.set("AIFillingDatabase", false);
+  globalStore.set("AIFillingDatabaseProgress", 0);
   win.webContents.send('python-database-end');
 };
 

@@ -41,7 +41,10 @@ L'application desktop est développée en ReactJS + Electron + ViteJS.
     ```bash
     npm install
     ```
- - **5.** La phase d'installation est terminée. 
+ - **5.** Installer Ollama avec les 2 modèles suivants :
+   - mxbai-embed-large
+   - gemma3
+ - **6.** La phase d'installation est terminée. 
 
 #### Lancer le mode développement
 Pour lancer le mode développement, il suffit d'exécuter la commande suivante dans le terminal :

@@ -11,3 +11,4 @@ reverse_geocoder
 langchain
 langchain-chroma
 langchain-ollama
+hf_xet

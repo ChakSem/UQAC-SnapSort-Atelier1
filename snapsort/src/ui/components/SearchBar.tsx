@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, forwardRef, useImperativeHandle } from "react";
 
-const SearchBar = ({ onSearch }: { onSearch: (prompt: string) => void }) => {
+export interface SearchBarRef {
+    getValue: () => string;
+}
 
+const SearchBar = forwardRef<SearchBarRef, { onSearch: (prompt: string) => void }>(({ onSearch }, ref) => {
     const [value, setValue] = useState("");
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -9,6 +12,10 @@ const SearchBar = ({ onSearch }: { onSearch: (prompt: string) => void }) => {
             onSearch(value);
         }
     };
+
+    useImperativeHandle(ref, () => ({
+        getValue: () => value
+    }));
 
     return (
         <div className="search-bar">
@@ -21,6 +28,6 @@ const SearchBar = ({ onSearch }: { onSearch: (prompt: string) => void }) => {
             />
         </div>
     );
-}
+});
 
 export default SearchBar;

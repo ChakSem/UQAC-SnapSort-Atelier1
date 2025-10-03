@@ -160,7 +160,7 @@ function UnsortedImages() {
           <button
             style={{
               backgroundColor: "var(--third-button-bg)",
-              cursor: "pointer"
+              cursor: "not-allowed"
             }}
           >
             Tri avancé (experimental)</button>
@@ -169,8 +169,7 @@ function UnsortedImages() {
           <button
             style={{
               backgroundColor: "var(--fourth-button-bg)",
-              cursor: "pointer"
-              // cursor: "not-allowed"
+              cursor: "not-allowed"
             }}
           >
             Tri automatique</button>

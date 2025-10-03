@@ -134,6 +134,7 @@ Les champs doivent s'appeler 'name' et 'description' respectivement."""
             image_name = os.path.basename(image_path)
             print('---------------------------------------------------------------')
             print(f'[PERCENTAGE]: {counter} / {len(image_paths)}')
+            counter += 1
             print(image_name)
             print('\n')
             if image_name in processed_files:
@@ -150,7 +151,7 @@ Les champs doivent s'appeler 'name' et 'description' respectivement."""
                 doc = Document(id=str(uuid.uuid4()), page_content=image_details.get_page_content(), metadata=metadata)
                 print(doc)
                 database.db.add_documents([doc])
-                counter += 1
+                
 
 
 

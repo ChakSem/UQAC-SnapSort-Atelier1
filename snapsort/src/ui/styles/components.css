@@ -6,12 +6,10 @@
 }
 
 .page-content {
-  flex: 1; /* Utilise tout l'espace restant à côté de la sidebar */
+  flex: 1;
   background-color: var(--secondary-bg);
-  overflow-y: auto; /* Active le scroll vertical uniquement si nécessaire */
-  height: 100vh; /* Assure que le contenu peut défiler dans tout l'espace disponible */
-  box-sizing: border-box; /* Inclut le padding dans le calcul de la hauteur */
-  scroll-behavior: smooth; /* Scroll fluide (optionnel mais agréable) */
+  height: 100vh;
+  box-sizing: border-box;
 }
 
 /* Home.css */
@@ -551,7 +549,6 @@
 .all-images {
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
   background-color: var(--third-bg);
 }
